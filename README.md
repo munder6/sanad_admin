@@ -1,36 +1,80 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Sanad Super Admin Dashboard
 
-## Getting Started
+Standalone Next.js frontend foundation for the Sanad platform owner / Super Admin team.
 
-First, run the development server:
+## Stack
+
+- Next.js App Router
+- TypeScript
+- Tailwind CSS
+- ESLint
+- Arabic RTL-first layout
+- Simple API-token auth flow using `localStorage` for the local MVP
+
+## Backend Dependency
+
+The frontend consumes the local Laravel API only through:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+http://localhost/sanad_api/public/api
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Current integrated endpoints:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- `POST /super-admin/auth/login`
+- `GET /super-admin/auth/me`
+- `POST /super-admin/auth/logout`
+- `GET /super-admin/overview`
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Setup
 
-## Learn More
+```bash
+cp .env.local.example .env.local
+npm install
+npm run dev
+```
 
-To learn more about Next.js, take a look at the following resources:
+Open:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+http://localhost:3000/login
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Environment
 
-## Deploy on Vercel
+`.env.local.example`:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+NEXT_PUBLIC_API_BASE_URL=http://localhost/sanad_api/public/api
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+No secrets are required in the frontend.
+
+## Implemented Pages
+
+- `/login` real Super Admin login API integration
+- `/dashboard` real overview KPI integration
+- `/shops` static placeholder table
+- `/users` static placeholder table
+- `/customers` static placeholder table
+- `/transactions` static placeholder table
+- `/ai-commands` static placeholder table
+- `/audit` static placeholder table
+- `/system` static health placeholder
+
+`/` redirects client-side to `/dashboard` when authenticated, otherwise `/login`.
+
+## Project Notes
+
+- The standalone visual reference is copied to `design/Sanad Admin Dashboard _standalone_.html`.
+- Backend Laravel code is not part of this project.
+- Flutter/mobile code is not part of this project.
+- Future tasks should add API integrations module by module without replacing the auth/layout foundation.
+
+## Validation Commands
+
+```bash
+npm run lint
+npm run build
+npm run dev
+```
