@@ -107,12 +107,12 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--cream)]">
+    <div className="sanad-shell">
       <div className="flex min-h-screen">
         <AdminSidebar />
-        <main className="min-w-0 flex-1">
+        <main className="sanad-main">
           <AdminTopbar title={getRouteLabel(pathname)} user={user} onLogout={handleLogout} />
-          <div className="px-5 py-6 xl:px-8">
+          <div className="sanad-content">
             {error ? (
               <div className="mb-5">
                 <ErrorState title="تنبيه الجلسة" message={error} />

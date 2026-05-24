@@ -1,18 +1,22 @@
+import type { ReactNode } from "react";
+import { toEnglishDigits } from "@/lib/formatters/number";
+
 type KpiCardProps = {
   title: string;
   value: string | number;
   subtitle?: string;
   trend?: string;
-  icon?: string;
-  tone?: "teal" | "gold" | "success" | "danger" | "ai";
+  icon?: ReactNode;
+  tone?: "teal" | "gold" | "success" | "danger" | "ai" | "warning";
 };
 
 const iconClasses: Record<NonNullable<KpiCardProps["tone"]>, string> = {
-  teal: "bg-[var(--primary-soft)] text-[var(--primary)]",
-  gold: "bg-[var(--gold-soft)] text-[var(--gold)]",
-  success: "bg-[var(--success-soft)] text-[var(--success)]",
-  danger: "bg-[var(--danger-soft)] text-[var(--danger)]",
-  ai: "bg-[var(--ai-soft)] text-[var(--ai)]",
+  teal: "bg-[var(--teal-50)] text-[var(--teal-700)]",
+  gold: "bg-[var(--gold-50)] text-[var(--gold-700)]",
+  success: "bg-[var(--success-soft)] text-[var(--success-700)]",
+  danger: "bg-[var(--danger-soft)] text-[var(--danger-700)]",
+  ai: "bg-[var(--ai-soft)] text-[var(--ai-700)]",
+  warning: "bg-[var(--warning-soft)] text-[var(--warning-700)]",
 };
 
 export function KpiCard({
@@ -23,22 +27,26 @@ export function KpiCard({
   icon = "س",
   tone = "teal",
 }: KpiCardProps) {
+  const displayValue = typeof value === "string" || typeof value === "number" ? toEnglishDigits(value) : value;
+  const displaySubtitle = subtitle ? toEnglishDigits(subtitle) : undefined;
+  const displayTrend = trend ? toEnglishDigits(trend) : undefined;
+
   return (
-    <article className="sanad-card p-4">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-xs font-medium text-[var(--muted)]">{title}</p>
-          <div className="mono-num mt-3 text-3xl font-semibold text-[var(--text)]">{value}</div>
-        </div>
-        <div className={`grid h-9 w-9 place-items-center rounded-[10px] text-xs font-bold ${iconClasses[tone]}`}>
+    <article className="sanad-card sanad-kpi">
+      <div className="sanad-kpi-top">
+        <p className="sanad-kpi-label">{title}</p>
+        <div className={`sanad-kpi-icon ${iconClasses[tone]}`}>
           {icon}
         </div>
       </div>
-      <div className="mt-3 flex items-center justify-between gap-3 text-xs">
-        <span className="text-[var(--muted-2)]">{subtitle}</span>
-        {trend ? (
-          <span className="rounded-full bg-[var(--success-soft)] px-2 py-1 font-medium text-[var(--success)]">
-            {trend}
+      <div className="sanad-kpi-value">
+        {displayValue}
+      </div>
+      <div className="sanad-kpi-foot">
+        <span className="text-[var(--muted-2)]">{displaySubtitle}</span>
+        {displayTrend ? (
+          <span className="sanad-trend">
+            {displayTrend}
           </span>
         ) : null}
       </div>

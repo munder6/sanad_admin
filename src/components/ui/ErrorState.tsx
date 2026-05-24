@@ -12,17 +12,17 @@ export function ErrorState({
   onRetry,
 }: ErrorStateProps) {
   return (
-    <div className="sanad-card border-[var(--danger-soft)] p-6">
+    <div className="sanad-card border-[var(--danger-soft)] bg-[var(--danger-soft)] p-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h3 className="text-base font-semibold text-[var(--danger)]">{title}</h3>
-          <p className="mt-1 text-sm text-[var(--muted)]">{message}</p>
+          <h3 className="text-[16px] font-semibold text-[var(--danger-700)]">{title}</h3>
+          <p className="mt-1 text-[14px] text-[var(--text-2)]">{message}</p>
         </div>
         {onRetry ? (
           <button
             type="button"
             onClick={onRetry}
-            className="focus-ring rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-medium text-white transition hover:bg-[var(--primary-dark)]"
+            className="focus-ring rounded-[var(--r-md)] bg-[var(--primary)] px-4 py-2 text-[14px] font-semibold text-white transition hover:bg-[var(--primary-dark)]"
           >
             {actionLabel}
           </button>

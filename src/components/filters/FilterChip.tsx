@@ -1,17 +1,28 @@
 type FilterChipProps = {
   label: string;
   selected?: boolean;
+  onClick?: () => void;
 };
 
-export function FilterChip({ label, selected = false }: FilterChipProps) {
+export function FilterChip({ label, selected = false, onClick }: FilterChipProps) {
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className={`sanad-chip ${selected ? "is-selected" : ""}`}
+      >
+        {selected ? <span className="h-1.5 w-1.5 rounded-full bg-current" /> : null}
+        {label}
+      </button>
+    );
+  }
+
   return (
     <span
-      className={`inline-flex rounded-full border px-3 py-1.5 text-xs font-medium ${
-        selected
-          ? "border-[var(--primary)] bg-[var(--primary-soft)] text-[var(--primary)]"
-          : "border-[var(--hairline)] bg-[var(--cream-2)] text-[var(--muted)]"
-      }`}
+      className={`sanad-chip ${selected ? "is-selected" : ""}`}
     >
+      {selected ? <span className="h-1.5 w-1.5 rounded-full bg-current" /> : null}
       {label}
     </span>
   );

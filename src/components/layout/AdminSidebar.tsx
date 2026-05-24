@@ -2,62 +2,77 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { adminRoutes } from "@/lib/constants/routes";
+import {
+  AiIcon,
+  AuditIcon,
+  CustomersIcon,
+  DashboardIcon,
+  JournalIcon,
+  SettingsIcon,
+  ShopsIcon,
+  SystemIcon,
+  TransactionsIcon,
+  UsersIcon,
+} from "@/components/icons/AdminIcons";
+import { adminRoutes, getActiveAdminRoute } from "@/lib/constants/routes";
+
+const groupLabels = {
+  overview: "النظرة العامة",
+  management: "الإدارة",
+  operations: "العمليات",
+  system: "النظام",
+} as const;
+
+const navIcons = {
+  dashboard: DashboardIcon,
+  shops: ShopsIcon,
+  users: UsersIcon,
+  customers: CustomersIcon,
+  transactions: TransactionsIcon,
+  journal: JournalIcon,
+  ai: AiIcon,
+  audit: AuditIcon,
+  system: SystemIcon,
+  settings: SettingsIcon,
+} as const;
 
 export function AdminSidebar() {
   const pathname = usePathname();
+  const activeRoute = getActiveAdminRoute(pathname);
 
   return (
-    <aside className="sticky top-0 hidden h-screen w-72 shrink-0 flex-col border-l border-[rgba(255,255,255,0.1)] bg-[var(--primary-dark)] text-white lg:flex">
-      <div className="border-b border-white/10 px-5 py-6">
-        <div className="flex items-center gap-3">
-          <div className="grid h-12 w-12 place-items-center rounded-2xl border border-[var(--gold)] bg-[var(--primary)] text-3xl font-bold text-[var(--gold)]">
-            س
-          </div>
-          <div>
-            <p className="text-lg font-semibold text-[var(--gold)]">سَنَد</p>
-            <p className="text-xs text-white/60">لوحة المشرف العام</p>
-          </div>
+    <aside className="sanad-sidebar">
+      <div className="sanad-brand">
+        <div className="sanad-brand-mark">س</div>
+        <div>
+          <p className="sanad-brand-title">سَنَد</p>
+          <p className="sanad-brand-subtitle">لوحة المشرف العام</p>
         </div>
       </div>
 
-      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-5">
-        {adminRoutes.map((route) => {
-          const active = pathname === route.href || pathname.startsWith(`${route.href}/`);
+      <nav className="sanad-nav">
+        {adminRoutes.map((route, index) => {
+          const active = activeRoute?.href === route.href;
+          const showGroup = index === 0 || route.group !== adminRoutes[index - 1]?.group;
+          const Icon = navIcons[route.icon];
 
           return (
-            <Link
-              key={route.href}
-              href={route.href}
-              className={`flex items-center gap-3 rounded-xl px-3 py-3 transition ${
-                active
-                  ? "bg-[var(--gold)] text-[#2a1f0f] shadow-lg shadow-black/10"
-                  : "text-white/72 hover:bg-white/8 hover:text-white"
-              }`}
-            >
-              <span
-                className={`grid h-9 w-9 place-items-center rounded-lg text-xs font-bold ${
-                  active ? "bg-white/35" : "bg-white/10"
-                }`}
+            <div key={route.href}>
+              {showGroup ? <p className="sanad-nav-group">{groupLabels[route.group]}</p> : null}
+              <Link
+                href={route.href}
+                className={`sanad-nav-item ${active ? "is-active" : ""}`}
+                aria-current={active ? "page" : undefined}
               >
-                {route.icon}
-              </span>
-              <span className="min-w-0">
-                <span className="block text-sm font-semibold">{route.label}</span>
-                <span className={`block truncate text-xs ${active ? "text-[#4b3518]" : "text-white/45"}`}>
-                  {route.eyebrow}
+                <span className="sanad-nav-icon" aria-hidden="true">
+                  <Icon />
                 </span>
-              </span>
-            </Link>
+                <span className="sanad-nav-label">{route.label}</span>
+              </Link>
+            </div>
           );
         })}
       </nav>
-
-      <div className="border-t border-white/10 p-4">
-        <div className="rounded-xl bg-white/8 p-3 text-xs leading-6 text-white/62">
-          نطاق العمل الحالي: واجهة المشرف العام فقط، بدون تعديل backend أو Flutter.
-        </div>
-      </div>
     </aside>
   );
 }

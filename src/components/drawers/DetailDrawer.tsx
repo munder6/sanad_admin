@@ -18,16 +18,16 @@ export function DetailDrawer({
       <aside className="flex h-full w-[760px] max-w-[92vw] flex-col bg-[var(--cream)] shadow-[-20px_0_50px_rgba(16,45,43,0.18)]">
         <header className="flex items-center justify-between border-b border-[var(--hairline)] bg-white px-6 py-4">
           <div>
-            <h3 className="font-semibold text-[var(--text)]">{title}</h3>
-            <p className="mt-1 text-xs text-[var(--muted)]">{subtitle}</p>
+            <h3 className="text-[20px] font-semibold text-[var(--text)]">{title}</h3>
+            <p className="mt-1 text-[14px] text-[var(--muted)]">{subtitle}</p>
           </div>
-          <span className="rounded-full bg-[var(--primary-soft)] px-3 py-1 text-xs font-medium text-[var(--primary)]">
+          <span className="rounded-full bg-[var(--primary-soft)] px-3 py-1 text-[13px] font-semibold text-[var(--primary)]">
             قريباً
           </span>
         </header>
         <div className="flex-1 overflow-auto p-6">
           {children ?? (
-            <div className="sanad-card p-5 text-sm text-[var(--muted)]">
+            <div className="sanad-card p-5 text-[15px] text-[var(--muted)]">
               ستظهر هنا تفاصيل المحل أو المستخدم أو الحركة المالية عند ربط الوحدات القادمة.
             </div>
           )}

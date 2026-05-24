@@ -1,4 +1,5 @@
 import { getToken } from "@/lib/auth/authStorage";
+import { normalizeDigitsDeep } from "@/lib/formatters/number";
 
 type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
@@ -56,10 +57,10 @@ export async function apiRequest<T>(
     body: body === undefined ? undefined : JSON.stringify(body),
   });
 
-  const payload = await readJson<ApiEnvelope<T>>(response);
+  const payload = normalizeDigitsDeep(await readJson<ApiEnvelope<T>>(response));
 
   if (!response.ok || payload.success === false) {
-    const message = payload.message || defaultErrorMessage(response.status);
+    const message = extractErrorMessage(payload) || defaultErrorMessage(response.status);
     const error = new ApiError(message, response.status, payload);
 
     if (response.status === 401 && onUnauthorized) {
@@ -88,4 +89,23 @@ function defaultErrorMessage(status: number): string {
   if (status === 403) return "لا تملك صلاحية الوصول إلى هذه الصفحة.";
   if (status >= 500) return "حدث خطأ في الخادم. حاول مرة أخرى لاحقاً.";
   return "تعذر تنفيذ الطلب.";
+}
+
+function extractErrorMessage(payload: ApiEnvelope<unknown>): string | null {
+  if (payload.message) return payload.message;
+
+  const errors = getValidationErrors(payload);
+  if (!errors) return null;
+
+  const firstError = Object.values(errors).flat().find((message) => typeof message === "string");
+  return firstError ?? null;
+}
+
+function getValidationErrors(payload: ApiEnvelope<unknown>): Record<string, string[]> | null {
+  const rawPayload = payload as { errors?: unknown };
+  if (!rawPayload.errors || typeof rawPayload.errors !== "object" || Array.isArray(rawPayload.errors)) {
+    return null;
+  }
+
+  return rawPayload.errors as Record<string, string[]>;
 }

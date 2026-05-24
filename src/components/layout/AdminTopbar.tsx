@@ -1,7 +1,11 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
+import { LogOut } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { SearchInput } from "@/components/filters/SearchInput";
-import type { SuperAdminUser } from "@/lib/api/superAdminApi";
+import { superAdminApi, type SuperAdminSearchResult, type SuperAdminUser } from "@/lib/api/superAdminApi";
+import { toEnglishDigits } from "@/lib/formatters/number";
 
 type AdminTopbarProps = {
   title: string;
@@ -10,45 +14,151 @@ type AdminTopbarProps = {
 };
 
 export function AdminTopbar({ title, user, onLogout }: AdminTopbarProps) {
-  const today = new Intl.DateTimeFormat("ar-PS", {
-    weekday: "long",
+  const router = useRouter();
+  const searchRef = useRef<HTMLDivElement | null>(null);
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<SuperAdminSearchResult[]>([]);
+  const [searchStatus, setSearchStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [open, setOpen] = useState(false);
+  const today = toEnglishDigits(new Intl.DateTimeFormat("ar-PS-u-nu-latn", {
     day: "numeric",
     month: "long",
-  }).format(new Date());
+    year: "numeric",
+    numberingSystem: "latn",
+  }).format(new Date()));
+
+  useEffect(() => {
+    function closeOnOutsideClick(event: MouseEvent) {
+      if (!searchRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", closeOnOutsideClick);
+    return () => document.removeEventListener("mousedown", closeOnOutsideClick);
+  }, []);
+
+  useEffect(() => {
+    const trimmed = query.trim();
+
+    if (trimmed.length < 2) {
+      return;
+    }
+
+    let active = true;
+
+    const timer = window.setTimeout(async () => {
+      try {
+        setSearchStatus("loading");
+        const response = await superAdminApi.search(trimmed);
+        if (!active) return;
+        setResults(response.results);
+        setSearchStatus("ready");
+        setOpen(true);
+      } catch {
+        if (!active) return;
+        setResults([]);
+        setSearchStatus("error");
+        setOpen(true);
+      }
+    }, 320);
+
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [query]);
+
+  function handleSelect(result: SuperAdminSearchResult) {
+    setOpen(false);
+    setQuery("");
+    router.push(result.url);
+  }
 
   return (
-    <header className="sticky top-0 z-30 border-b border-[var(--hairline)] bg-[rgba(246,241,232,0.88)] px-5 py-3 backdrop-blur xl:px-8">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <p className="text-xs text-[var(--muted)]">سَنَد · Super Admin</p>
-          <h1 className="mt-1 text-xl font-semibold text-[var(--text)]">{title}</h1>
+    <header className="sanad-topbar">
+      <div className="sanad-topbar-inner">
+        <span className="sr-only">{title}</span>
+        <div ref={searchRef} className="relative">
+          <SearchInput
+            placeholder="ابحث عن محل، زبون، حركة، يومية، أمر صوتي..."
+            value={query}
+            onChange={(value) => {
+              const trimmedValue = value.trim();
+              setQuery(value);
+              setOpen(trimmedValue.length >= 2);
+
+              if (trimmedValue.length < 2) {
+                setResults([]);
+                setSearchStatus("idle");
+              }
+            }}
+            onFocus={() => setOpen(query.trim().length >= 2)}
+          />
+          {open ? (
+            <div className="sanad-search-menu">
+              {searchStatus === "loading" ? (
+                <div className="sanad-search-state">جاري البحث...</div>
+              ) : searchStatus === "error" ? (
+                <div className="sanad-search-state text-[var(--danger-700)]">تعذر تنفيذ البحث الآن.</div>
+              ) : results.length === 0 ? (
+                <div className="sanad-search-state">لا توجد نتائج مطابقة.</div>
+              ) : (
+                results.map((result) => (
+                  <button
+                    key={`${result.type}-${result.url}`}
+                    type="button"
+                    className="sanad-search-result"
+                    onClick={() => handleSelect(result)}
+                  >
+                    <span className="sanad-search-result-type">{resultTypeLabel(result.type)}</span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-[13.5px] font-semibold text-[var(--ink)]">{result.label}</span>
+                      {result.subtitle ? (
+                        <span className="mt-0.5 block truncate text-[12px] text-[var(--muted)]">{result.subtitle}</span>
+                      ) : null}
+                    </span>
+                  </button>
+                ))
+              )}
+            </div>
+          ) : null}
         </div>
 
-        <div className="flex flex-1 items-center justify-end gap-3">
-          <div className="hidden md:block">
-            <SearchInput placeholder="بحث عام في لوحة سَنَد..." />
-          </div>
-          <div className="hidden rounded-full border border-[var(--hairline)] bg-white px-4 py-2 text-xs text-[var(--muted)] shadow-sm xl:block">
-            {today} · آخر 30 يوم
-          </div>
-          <div className="flex items-center gap-3 rounded-full border border-[var(--hairline)] bg-white py-1 pr-2 pl-4 shadow-sm">
-            <div className="grid h-9 w-9 place-items-center rounded-full bg-[var(--primary)] text-xs font-semibold text-white">
-              {user?.name?.slice(0, 2) || "مش"}
-            </div>
-            <div className="hidden sm:block">
-              <p className="text-sm font-semibold text-[var(--text)]">{user?.name || "مشرف سَنَد"}</p>
-              <p className="text-xs text-[var(--muted)]">{user?.phone || "Super Admin"}</p>
+        <div className="hidden text-[14px] font-semibold text-[var(--muted)] xl:block">
+          {today}
+        </div>
+
+        <div className="sanad-top-actions ms-auto">
+          <div className="sanad-user-pill">
+            <div className="sanad-user-avatar">{user?.name?.slice(0, 2) || "س"}</div>
+            <div>
+              <p className="sanad-user-name">{user?.name || "مشرف سَنَد"}</p>
+              <p className="sanad-user-role">مشرف عام</p>
             </div>
           </div>
           <button
             type="button"
             onClick={onLogout}
-            className="focus-ring rounded-lg border border-[var(--danger-soft)] bg-[var(--danger-soft)] px-3 py-2 text-sm font-medium text-[var(--danger)] transition hover:bg-[#f4d7d2]"
+            className="sanad-btn h-9 border-[var(--danger-soft)] bg-[var(--danger-soft)] text-[var(--danger-700)] hover:bg-[#f0d1cc]"
           >
+            <LogOut size={16} />
             خروج
           </button>
         </div>
       </div>
     </header>
   );
+}
+
+function resultTypeLabel(type: string): string {
+  return {
+    shop: "محل",
+    user: "مستخدم",
+    customer: "زبون",
+    transaction: "حركة",
+    daily_journal_entry: "يومية",
+    daily_journal_ai_draft: "يومية AI",
+    ai_command: "AI",
+  }[type] ?? "نتيجة";
 }
