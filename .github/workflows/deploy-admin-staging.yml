@@ -1,0 +1,62 @@
+name: Deploy Admin (Staging)
+
+# Push to `staging` -> build with the staging base path + staging API, then deploy
+# to the staging folder on Hostinger. No per-branch code divergence: the only
+# differences are the env vars injected below.
+on:
+  push:
+    branches: [staging]
+  workflow_dispatch:
+
+# Never run two staging deploys at once; let an in-flight deploy finish (don't cancel).
+concurrency:
+  group: deploy-admin-staging
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Build & deploy to staging
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_BASE_PATH: /sanad-admin-staging
+      NEXT_PUBLIC_API_BASE_URL: https://wewill.tech/sanad-api/api-staging/api
+      REWRITE_BASE: /sanad-admin-staging/
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build static export
+        run: npm run build
+
+      - name: Verify build output
+        run: |
+          set -e
+          test -f out/index.html
+          test -d out/_next
+          # assets must be prefixed with the staging base path...
+          grep -q "${NEXT_PUBLIC_BASE_PATH}/_next/" out/index.html
+          # ...and the staging API URL must be inlined into the bundle.
+          grep -rqF "$NEXT_PUBLIC_API_BASE_URL" out/_next/static
+          echo "✓ build verified: base path + API URL inlined"
+
+      - name: Deploy to staging
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          TARGET_DIR: ${{ secrets.STAGING_ADMIN_DIR }}
+          BACKUP: '0'
+        run: bash deploy/deploy.sh
