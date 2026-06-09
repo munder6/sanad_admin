@@ -96,6 +96,15 @@ export function AuditIcon(props: IconProps) {
   );
 }
 
+export function SmsIcon(props: IconProps) {
+  return (
+    <BaseIcon {...props}>
+      <path d="M5 5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-7l-5 4v-4H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z" />
+      <path d="M8 9h8M8 13h5" />
+    </BaseIcon>
+  );
+}
+
 export function SystemIcon(props: IconProps) {
   return (
     <BaseIcon {...props}>

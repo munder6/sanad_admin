@@ -2,7 +2,7 @@ export type AdminRoute = {
   href: string;
   label: string;
   eyebrow: string;
-  icon: "dashboard" | "shops" | "users" | "customers" | "transactions" | "journal" | "ai" | "audit" | "system" | "settings";
+  icon: "dashboard" | "shops" | "users" | "customers" | "transactions" | "journal" | "ai" | "audit" | "sms" | "system" | "settings";
   group: "overview" | "management" | "operations" | "system";
 };
 
@@ -15,11 +15,16 @@ export const adminRoutes: AdminRoute[] = [
   { href: "/daily-journal", label: "اليوميات", eyebrow: "دفتر اليوميات", icon: "journal", group: "operations" },
   { href: "/ai-commands", label: "أوامر الذكاء الصناعي", eyebrow: "الأوامر الذكية", icon: "ai", group: "operations" },
   { href: "/audit", label: "الأمان والتدقيق", eyebrow: "سجل النظام", icon: "audit", group: "system" },
+  { href: "/sms", label: "الرسائل النصية", eyebrow: "إدارة SMS", icon: "sms", group: "system" },
   { href: "/system", label: "صحة النظام", eyebrow: "الخدمات", icon: "system", group: "system" },
   { href: "/system/settings", label: "إعدادات النظام", eyebrow: "الوصول والتوفر", icon: "settings", group: "system" },
 ];
 
 export function getRouteLabel(pathname: string): string {
+  if (pathname === "/profile" || pathname.startsWith("/profile/")) {
+    return "بياناتي";
+  }
+
   return getActiveAdminRoute(pathname)?.label ?? "لوحة سَنَد";
 }
 

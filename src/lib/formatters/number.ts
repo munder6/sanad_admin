@@ -23,7 +23,39 @@ export function formatCount(value: number | string | null | undefined): string {
 
 export function formatPhone(value?: string | number | null): string {
   if (value === null || value === undefined || value === "") return "-";
-  return toEnglishDigits(value);
+  return normalizeLocalPhoneDisplay(value) ?? toEnglishDigits(value);
+}
+
+export function normalizeLocalPhoneDisplay(value?: string | number | null): string | null {
+  if (value === null || value === undefined) return null;
+
+  const normalized = toEnglishDigits(value).trim();
+  if (!normalized) return null;
+
+  const digits = normalized.startsWith("+") ? normalized.slice(1) : normalized;
+  if (!/^\d+$/.test(digits)) return null;
+
+  if (/^0\d{9}$/.test(digits)) {
+    return digits;
+  }
+
+  if (/^\d{9}$/.test(digits) && !digits.startsWith("0")) {
+    return `0${digits}`;
+  }
+
+  if (/^(970|972)\d{9}$/.test(digits)) {
+    return `0${digits.slice(3)}`;
+  }
+
+  return null;
+}
+
+export function sanitizeLocalPhoneInput(value: string): string {
+  return toEnglishDigits(value).replace(/\D/g, "").slice(0, 10);
+}
+
+export function isValidLocalPhone(value: string): boolean {
+  return /^0\d{9}$/.test(toEnglishDigits(value).trim());
 }
 
 export function formatAmount(value: number | string | null | undefined, currency = "شيكل"): string {

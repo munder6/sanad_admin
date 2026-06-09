@@ -13,7 +13,7 @@ import {
   type SuperAdminPlatformSettingsResponse,
   type UpdatePlatformSettingsInput,
 } from "@/lib/api/superAdminApi";
-import { formatArabicDateTime } from "@/lib/formatters/date";
+import { formatAdminDateTime } from "@/lib/formatters/date";
 
 export default function SystemSettingsPage() {
   const [featureFlags, setFeatureFlags] = useState<SuperAdminFeatureFlag[]>([]);
@@ -208,6 +208,8 @@ export default function SystemSettingsPage() {
           onRefresh={loadPlatformSettings}
           onSave={savePlatformSettings}
         />
+
+        <SmsManagementLinkCard />
       </div>
 
       <ConfirmDialog
@@ -502,6 +504,22 @@ function PlatformAccessCard({
   );
 }
 
+function SmsManagementLinkCard() {
+  return (
+    <section className="sanad-card overflow-hidden">
+      <div className="sanad-card-header flex-wrap">
+        <div>
+          <h3 className="sanad-section-title">إدارة الرسائل النصية</h3>
+          <p className="sanad-section-subtitle">انتقل إلى صفحة الرسائل النصية لإعداد المزود وفحص الرصيد.</p>
+        </div>
+        <Link href="/sms" className="sanad-btn sanad-btn-primary">
+          فتح إدارة الرسائل
+        </Link>
+      </div>
+    </section>
+  );
+}
+
 function PlatformInput({
   label,
   value,
@@ -603,7 +621,7 @@ function toBool(value: string | boolean | undefined): boolean {
 }
 
 function latestPlatformUpdate(settings: SuperAdminPlatformSettingsResponse | null): string {
-  if (!settings?.settings.length) return "-";
+  if (!settings?.settings.length) return "—";
 
   const latest = settings.settings
     .map((setting) => setting.updated_at)
@@ -615,11 +633,5 @@ function latestPlatformUpdate(settings: SuperAdminPlatformSettingsResponse | nul
 }
 
 function formatDateTime(value?: string | null): string {
-  if (!value) return "-";
-
-  try {
-    return formatArabicDateTime(value);
-  } catch {
-    return value;
-  }
+  return formatAdminDateTime(value);
 }

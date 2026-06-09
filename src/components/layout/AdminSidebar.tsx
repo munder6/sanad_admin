@@ -10,6 +10,7 @@ import {
   JournalIcon,
   SettingsIcon,
   ShopsIcon,
+  SmsIcon,
   SystemIcon,
   TransactionsIcon,
   UsersIcon,
@@ -32,6 +33,7 @@ const navIcons = {
   journal: JournalIcon,
   ai: AiIcon,
   audit: AuditIcon,
+  sms: SmsIcon,
   system: SystemIcon,
   settings: SettingsIcon,
 } as const;

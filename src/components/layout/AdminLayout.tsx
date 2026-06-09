@@ -37,6 +37,23 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   }, [router]);
 
   useEffect(() => {
+    function handleUserUpdated(event: Event) {
+      const updatedUser = (event as CustomEvent<SuperAdminUser>).detail;
+
+      if (!updatedUser) {
+        return;
+      }
+
+      setUser(updatedUser);
+      setStoredUser(updatedUser);
+    }
+
+    window.addEventListener("sanad-super-admin-user-updated", handleUserUpdated);
+
+    return () => window.removeEventListener("sanad-super-admin-user-updated", handleUserUpdated);
+  }, []);
+
+  useEffect(() => {
     let active = true;
 
     async function validateSession() {

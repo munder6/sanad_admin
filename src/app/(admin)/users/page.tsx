@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { MoreHorizontal } from "lucide-react";
+import { MoreHorizontal, Plus } from "lucide-react";
 import { StatusBadge } from "@/components/badges/StatusBadge";
 import { FilterChip } from "@/components/filters/FilterChip";
 import { SearchInput } from "@/components/filters/SearchInput";
@@ -18,6 +18,7 @@ import {
   type SuperAdminUsersParams,
 } from "@/lib/api/superAdminApi";
 import { formatArabicDateTime } from "@/lib/formatters/date";
+import { isValidLocalPhone, sanitizeLocalPhoneInput } from "@/lib/formatters/number";
 
 const perPage = 10;
 
@@ -51,12 +52,18 @@ export default function UsersPage() {
   const [error, setError] = useState<string | null>(null);
   const [forbidden, setForbidden] = useState(false);
   const [actionUser, setActionUser] = useState<SuperAdminUser | null>(null);
-  const [actionType, setActionType] = useState<"suspend" | "unsuspend" | null>(null);
+  const [actionType, setActionType] = useState<"suspend" | "unsuspend" | "promote" | null>(null);
   const [suspendReason, setSuspendReason] = useState("");
   const [suspensionMessage, setSuspensionMessage] = useState("");
+  const [promotePassword, setPromotePassword] = useState("");
+  const [promoteNotes, setPromoteNotes] = useState("");
   const [actionSaving, setActionSaving] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createForm, setCreateForm] = useState<CreateUserForm>(emptyCreateUserForm);
+  const [createSaving, setCreateSaving] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
   const [openActionsMenu, setOpenActionsMenu] = useState<{
     userId: number;
     top: number;
@@ -122,6 +129,8 @@ export default function UsersPage() {
     setActionType(null);
     setSuspendReason("");
     setSuspensionMessage("");
+    setPromotePassword("");
+    setPromoteNotes("");
     setActionError(null);
   }, [actionSaving]);
 
@@ -146,6 +155,36 @@ export default function UsersPage() {
       setActionSaving(true);
       setActionError(null);
 
+      if (actionType === "promote") {
+        if (!promotePassword.trim()) {
+          setActionError("كلمة مرور المشرف الحالي مطلوبة.");
+          return;
+        }
+
+        const detail = await superAdminApi.promoteUserToSuperAdmin(actionUser.id, {
+          admin_password: promotePassword,
+          notes: promoteNotes,
+        });
+
+        setUsers((current) => current.map((user) => (
+          user.id === detail.user.id
+            ? {
+                ...user,
+                is_super_admin: true,
+                role: "super_admin",
+              }
+            : user
+        )));
+        setActionSuccess("تم تعيين المستخدم كمشرف بنجاح.");
+        setActionUser(null);
+        setActionType(null);
+        setPromotePassword("");
+        setPromoteNotes("");
+        setActionError(null);
+        await loadUsers();
+        return;
+      }
+
       const detail = actionType === "suspend"
         ? await superAdminApi.suspendUser(actionUser.id, {
             reason: suspendReason,
@@ -159,6 +198,8 @@ export default function UsersPage() {
       setActionType(null);
       setSuspendReason("");
       setSuspensionMessage("");
+      setPromotePassword("");
+      setPromoteNotes("");
       setActionError(null);
       await loadUsers();
     } catch (caught) {
@@ -166,7 +207,36 @@ export default function UsersPage() {
     } finally {
       setActionSaving(false);
     }
-  }, [actionType, actionUser, loadUsers, refreshActionUser, suspendReason, suspensionMessage]);
+  }, [actionType, actionUser, loadUsers, promoteNotes, promotePassword, refreshActionUser, suspendReason, suspensionMessage]);
+
+  const closeCreateDialog = useCallback(() => {
+    if (createSaving) return;
+    setCreateOpen(false);
+    setCreateForm(emptyCreateUserForm);
+    setCreateError(null);
+  }, [createSaving]);
+
+  const submitCreateUser = useCallback(async () => {
+    if (!canSubmitCreateUser(createForm)) {
+      setCreateError("رقم الجوال يجب أن يكون 10 أرقام ويبدأ بصفر، مع تعبئة باقي الحقول المطلوبة.");
+      return;
+    }
+
+    try {
+      setCreateSaving(true);
+      setCreateError(null);
+      await superAdminApi.createUser(createForm);
+      setCreateOpen(false);
+      setCreateForm(emptyCreateUserForm);
+      setActionSuccess("تم إنشاء المستخدم بنجاح.");
+      setPage(1);
+      await loadUsers();
+    } catch (caught) {
+      setCreateError(caught instanceof Error ? caught.message : "تعذر إنشاء المستخدم.");
+    } finally {
+      setCreateSaving(false);
+    }
+  }, [createForm, loadUsers]);
 
   const selectedActionsUser = openActionsMenu
     ? users.find((user) => user.id === openActionsMenu.userId) ?? null
@@ -180,7 +250,21 @@ export default function UsersPage() {
           <h2>المستخدمون</h2>
           <p>إدارة ومراقبة حسابات منصة سند</p>
         </div>
-        <StatusBadge tone="teal">تحكم الحسابات</StatusBadge>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            className="sanad-btn sanad-btn-primary"
+            onClick={() => {
+              setActionSuccess(null);
+              setCreateError(null);
+              setCreateOpen(true);
+            }}
+          >
+            <Plus size={17} strokeWidth={2.2} />
+            إضافة مستخدم
+          </button>
+          <StatusBadge tone="teal">تحكم الحسابات</StatusBadge>
+        </div>
       </div>
 
       <section className="sanad-card overflow-hidden">
@@ -247,6 +331,8 @@ export default function UsersPage() {
                     <th>الحالة</th>
                     <th>الصلاحية</th>
                     <th>المحل الحالي</th>
+                    <th>حالة الرسائل</th>
+                    <th className="!text-center">المتاح</th>
                     <th className="!text-center">عدد المحلات</th>
                     <th className="!text-center">عدد الحركات</th>
                     <th className="!text-center">أوامر AI</th>
@@ -280,6 +366,14 @@ export default function UsersPage() {
                       </td>
                       <td><StatusBadge tone={user.is_super_admin ? "gold" : "neutral"}>{roleLabel(user)}</StatusBadge></td>
                       <td>{user.current_shop?.name ?? "-"}</td>
+                      <td>
+                        <StatusBadge tone={user.sms_wallet?.effective_sms_enabled === false ? "danger" : "success"}>
+                          {user.sms_wallet?.effective_sms_enabled === false ? "موقوفة" : "مفعلة"}
+                        </StatusBadge>
+                      </td>
+                      <td className="!text-center">
+                        <span className="mono-num">{formatCount(user.sms_wallet?.available_balance ?? 0)}</span>
+                      </td>
                       <td className="!text-center"><span className="mono-num">{formatCount(user.shops_count ?? 0)}</span></td>
                       <td className="!text-center"><span className="mono-num">{formatCount(user.ledger_entries_count ?? 0)}</span></td>
                       <td className="!text-center"><span className="mono-num">{formatCount(user.ai_commands_count ?? 0)}</span></td>
@@ -330,21 +424,50 @@ export default function UsersPage() {
                 >
                   عرض التفاصيل
                 </Link>
-                <button
-                  type="button"
-                  className={`sanad-action-menu-item ${selectedActionsUser.is_suspended ? "" : "is-danger"}`}
-                  role="menuitem"
-                  onClick={() => {
-                    setOpenActionsMenu(null);
-                    setActionSuccess(null);
-                    setActionUser(selectedActionsUser);
-                    setActionType(selectedActionsUser.is_suspended ? "unsuspend" : "suspend");
-                    setSuspendReason(selectedActionsUser.suspended_reason ?? "");
-                    setSuspensionMessage(selectedActionsUser.suspension_message ?? "");
-                  }}
-                >
-                  {selectedActionsUser.is_suspended ? "تفعيل الحساب" : "تجميد الحساب"}
-                </button>
+                {!selectedActionsUser.is_super_admin ? (
+                  <button
+                    type="button"
+                    className="sanad-action-menu-item"
+                    role="menuitem"
+                    onClick={() => {
+                      setOpenActionsMenu(null);
+                      setActionSuccess(null);
+                      setActionError(null);
+                      setActionUser(selectedActionsUser);
+                      setActionType("promote");
+                      setPromotePassword("");
+                      setPromoteNotes("");
+                    }}
+                  >
+                    تعيين كمشرف
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="sanad-action-menu-item cursor-not-allowed opacity-60"
+                    disabled
+                    role="menuitem"
+                  >
+                    مشرف بالفعل
+                  </button>
+                )}
+                {!selectedActionsUser.is_super_admin ? (
+                  <button
+                    type="button"
+                    className={`sanad-action-menu-item ${selectedActionsUser.is_suspended ? "" : "is-danger"}`}
+                    role="menuitem"
+                    onClick={() => {
+                      setOpenActionsMenu(null);
+                      setActionSuccess(null);
+                      setActionUser(selectedActionsUser);
+                      setActionType(selectedActionsUser.is_suspended ? "unsuspend" : "suspend");
+                      setSuspendReason(selectedActionsUser.suspended_reason ?? "");
+                      setSuspensionMessage(selectedActionsUser.suspension_message ?? "");
+                    }}
+                  >
+                    {selectedActionsUser.is_suspended ? "تفعيل الحساب" : "تجميد الحساب"}
+                  </button>
+                ) : null}
               </div>
             ) : null}
 
@@ -398,7 +521,249 @@ export default function UsersPage() {
         onCancel={closeAction}
         onConfirm={confirmAction}
       />
+
+      <PromoteDialog
+        errorMessage={actionError}
+        loading={actionSaving}
+        notes={promoteNotes}
+        open={actionType === "promote" && Boolean(actionUser)}
+        password={promotePassword}
+        userName={actionUser?.name ?? "المستخدم"}
+        onCancel={closeAction}
+        onConfirm={confirmAction}
+        onNotesChange={setPromoteNotes}
+        onPasswordChange={setPromotePassword}
+      />
+
+      <CreateUserDialog
+        errorMessage={createError}
+        form={createForm}
+        loading={createSaving}
+        open={createOpen}
+        onCancel={closeCreateDialog}
+        onChange={(field, value) => setCreateForm((current) => ({ ...current, [field]: value }))}
+        onConfirm={submitCreateUser}
+      />
     </>
+  );
+}
+
+type CreateUserForm = {
+  name: string;
+  phone: string;
+  email: string;
+  password: string;
+  password_confirmation: string;
+  shop_name: string;
+  notes: string;
+};
+
+const emptyCreateUserForm: CreateUserForm = {
+  name: "",
+  phone: "",
+  email: "",
+  password: "",
+  password_confirmation: "",
+  shop_name: "",
+  notes: "",
+};
+
+function canSubmitCreateUser(form: CreateUserForm): boolean {
+  return Boolean(
+    form.name.trim()
+      && form.phone.trim()
+      && isValidLocalPhone(form.phone)
+      && form.shop_name.trim()
+      && form.password.length >= 8
+      && form.password === form.password_confirmation,
+  );
+}
+
+function PromoteDialog({
+  open,
+  userName,
+  password,
+  notes,
+  loading,
+  errorMessage,
+  onPasswordChange,
+  onNotesChange,
+  onCancel,
+  onConfirm,
+}: {
+  open: boolean;
+  userName: string;
+  password: string;
+  notes: string;
+  loading: boolean;
+  errorMessage: string | null;
+  onPasswordChange: (value: string) => void;
+  onNotesChange: (value: string) => void;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  if (!open) return null;
+
+  const canConfirm = password.trim().length > 0 && !loading;
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-[rgba(14,42,40,0.42)] px-4 py-6" role="presentation">
+      <div aria-modal="true" className="sanad-card w-full max-w-[560px] overflow-hidden" role="dialog">
+        <div className="border-b border-[var(--hairline-2)] px-5 py-4">
+          <h3 className="text-[20px] font-bold text-[var(--text)]">تعيين المستخدم كمشرف</h3>
+          <p className="mt-2 text-[14.5px] leading-7 text-[var(--text-2)]">
+            سيتم منح هذا المستخدم صلاحية الدخول إلى لوحة الإدارة. هذا الإجراء حساس ويجب تأكيده بكلمة مرورك.
+          </p>
+          <p className="mt-1 text-[13px] leading-6 text-[var(--muted)]">المستخدم: {userName}</p>
+        </div>
+        <div className="space-y-4 px-5 py-4">
+          <div className="rounded-[var(--r-md)] border border-[var(--gold-soft)] bg-[var(--gold-soft)] px-4 py-3 text-[14px] font-semibold text-[var(--gold-700)]">
+            هذا الإجراء يمنح المستخدم صلاحية الدخول إلى لوحة الإدارة.
+          </div>
+          <label className="block text-[13px] font-semibold text-[var(--text)]" htmlFor="promote-admin-password">
+            كلمة مرور المشرف الحالي
+          </label>
+          <input
+            className="w-full rounded-[var(--r-md)] border border-[var(--border)] bg-[var(--paper)] px-3 py-2 text-[14px] text-[var(--text)] outline-none transition focus:border-[var(--teal-700)]"
+            disabled={loading}
+            id="promote-admin-password"
+            type="password"
+            value={password}
+            onChange={(event) => onPasswordChange(event.target.value)}
+          />
+
+          <label className="block text-[13px] font-semibold text-[var(--text)]" htmlFor="promote-notes">
+            ملاحظة داخلية <span className="font-normal text-[var(--muted)]">اختياري</span>
+          </label>
+          <textarea
+            className="min-h-[86px] w-full rounded-[var(--r-md)] border border-[var(--border)] bg-[var(--paper)] px-3 py-2 text-[14px] leading-7 text-[var(--text)] outline-none transition focus:border-[var(--teal-700)]"
+            disabled={loading}
+            id="promote-notes"
+            maxLength={2000}
+            value={notes}
+            onChange={(event) => onNotesChange(event.target.value)}
+          />
+          {errorMessage ? (
+            <div className="rounded-[var(--r-md)] border border-[var(--danger-soft)] bg-[var(--danger-soft)] px-4 py-3 text-[14px] font-semibold text-[var(--danger-700)]">
+              {errorMessage}
+            </div>
+          ) : null}
+        </div>
+        <div className="flex flex-col-reverse gap-2 px-5 py-4 sm:flex-row sm:justify-end">
+          <button className="sanad-btn justify-center" disabled={loading} type="button" onClick={onCancel}>
+            إلغاء
+          </button>
+          <button className="sanad-btn sanad-btn-primary justify-center disabled:cursor-not-allowed disabled:opacity-60" disabled={!canConfirm} type="button" onClick={onConfirm}>
+            {loading ? "جاري التعيين..." : "تعيين كمشرف"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CreateUserDialog({
+  open,
+  form,
+  loading,
+  errorMessage,
+  onChange,
+  onCancel,
+  onConfirm,
+}: {
+  open: boolean;
+  form: CreateUserForm;
+  loading: boolean;
+  errorMessage: string | null;
+  onChange: (field: keyof CreateUserForm, value: string) => void;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  if (!open) return null;
+
+  const canConfirm = canSubmitCreateUser(form) && !loading;
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-[rgba(14,42,40,0.36)] px-4 py-6" role="presentation">
+      <div aria-modal="true" className="sanad-card max-h-[92vh] w-full max-w-[640px] overflow-y-auto" role="dialog">
+        <div className="border-b border-[var(--hairline-2)] px-5 py-4">
+          <h3 className="text-[20px] font-bold text-[var(--text)]">إنشاء حساب جديد</h3>
+          <p className="mt-2 text-[14.5px] leading-7 text-[var(--text-2)]">
+            سيتم إنشاء المستخدم كحساب تطبيق نشط وموثق من الإدارة.
+          </p>
+        </div>
+
+        <div className="grid gap-4 px-5 py-4 sm:grid-cols-2">
+          <FormInput id="create-user-name" label="الاسم" disabled={loading} value={form.name} onChange={(value) => onChange("name", value)} />
+          <FormInput id="create-user-phone" label="رقم الجوال" disabled={loading} value={form.phone} onChange={(value) => onChange("phone", sanitizeLocalPhoneInput(value))} />
+          <FormInput id="create-user-email" label="البريد الإلكتروني" disabled={loading} type="email" value={form.email} onChange={(value) => onChange("email", value)} optional />
+          <FormInput id="create-user-shop" label="اسم المحل" disabled={loading} value={form.shop_name} onChange={(value) => onChange("shop_name", value)} />
+          <FormInput id="create-user-password" label="كلمة المرور" disabled={loading} type="password" value={form.password} onChange={(value) => onChange("password", value)} />
+          <FormInput id="create-user-password-confirmation" label="تأكيد كلمة المرور" disabled={loading} type="password" value={form.password_confirmation} onChange={(value) => onChange("password_confirmation", value)} />
+          <div className="sm:col-span-2">
+            <label className="block text-[13px] font-semibold text-[var(--text)]" htmlFor="create-user-notes">
+              ملاحظات داخلية
+            </label>
+            <textarea
+              className="mt-1 min-h-[86px] w-full rounded-[var(--r-md)] border border-[var(--border)] bg-[var(--paper)] px-3 py-2 text-[14px] leading-7 text-[var(--text)] outline-none transition focus:border-[var(--teal-700)]"
+              disabled={loading}
+              id="create-user-notes"
+              maxLength={2000}
+              placeholder="اختياري"
+              value={form.notes}
+              onChange={(event) => onChange("notes", event.target.value)}
+            />
+          </div>
+          {errorMessage ? (
+            <div className="rounded-[var(--r-md)] border border-[var(--danger-soft)] bg-[var(--danger-soft)] px-4 py-3 text-[14px] font-semibold text-[var(--danger-700)] sm:col-span-2">
+              {errorMessage}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="flex flex-col-reverse gap-2 px-5 py-4 sm:flex-row sm:justify-end">
+          <button className="sanad-btn justify-center" disabled={loading} type="button" onClick={onCancel}>
+            إلغاء
+          </button>
+          <button className="sanad-btn sanad-btn-primary justify-center disabled:cursor-not-allowed disabled:opacity-60" disabled={!canConfirm} type="button" onClick={onConfirm}>
+            {loading ? "جاري الإنشاء..." : "إنشاء حساب"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FormInput({
+  id,
+  label,
+  value,
+  disabled,
+  onChange,
+  type = "text",
+  optional = false,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  disabled: boolean;
+  onChange: (value: string) => void;
+  type?: string;
+  optional?: boolean;
+}) {
+  return (
+    <label className="block text-[13px] font-semibold text-[var(--text)]" htmlFor={id}>
+      {label}
+      {optional ? <span className="me-1 font-normal text-[var(--muted)]">اختياري</span> : null}
+      <input
+        className="mt-1 w-full rounded-[var(--r-md)] border border-[var(--border)] bg-[var(--paper)] px-3 py-2 text-[14px] text-[var(--text)] outline-none transition focus:border-[var(--teal-700)]"
+        disabled={disabled}
+        id={id}
+        type={type}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      />
+    </label>
   );
 }
 

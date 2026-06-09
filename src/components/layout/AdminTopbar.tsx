@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { LogOut } from "lucide-react";
+import { ChevronDown, LogOut, UserRound } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { SearchInput } from "@/components/filters/SearchInput";
 import { superAdminApi, type SuperAdminSearchResult, type SuperAdminUser } from "@/lib/api/superAdminApi";
-import { toEnglishDigits } from "@/lib/formatters/number";
+import { formatAdminDate } from "@/lib/formatters/date";
 
 type AdminTopbarProps = {
   title: string;
@@ -16,16 +16,13 @@ type AdminTopbarProps = {
 export function AdminTopbar({ title, user, onLogout }: AdminTopbarProps) {
   const router = useRouter();
   const searchRef = useRef<HTMLDivElement | null>(null);
+  const profileMenuRef = useRef<HTMLDivElement | null>(null);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SuperAdminSearchResult[]>([]);
   const [searchStatus, setSearchStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [open, setOpen] = useState(false);
-  const today = toEnglishDigits(new Intl.DateTimeFormat("ar-PS-u-nu-latn", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    numberingSystem: "latn",
-  }).format(new Date()));
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const today = formatAdminDate(new Date());
 
   useEffect(() => {
     function closeOnOutsideClick(event: MouseEvent) {
@@ -36,6 +33,17 @@ export function AdminTopbar({ title, user, onLogout }: AdminTopbarProps) {
 
     document.addEventListener("mousedown", closeOnOutsideClick);
     return () => document.removeEventListener("mousedown", closeOnOutsideClick);
+  }, []);
+
+  useEffect(() => {
+    function closeProfileMenu(event: MouseEvent) {
+      if (!profileMenuRef.current?.contains(event.target as Node)) {
+        setProfileMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", closeProfileMenu);
+    return () => document.removeEventListener("mousedown", closeProfileMenu);
   }, []);
 
   useEffect(() => {
@@ -79,9 +87,9 @@ export function AdminTopbar({ title, user, onLogout }: AdminTopbarProps) {
     <header className="sanad-topbar">
       <div className="sanad-topbar-inner">
         <span className="sr-only">{title}</span>
-        <div ref={searchRef} className="relative">
+        <div ref={searchRef} className="sanad-topbar-search relative">
           <SearchInput
-            placeholder="ابحث عن محل، زبون، حركة، يومية، أمر صوتي..."
+            placeholder="ابحث عن محل، زبون..."
             value={query}
             onChange={(value) => {
               const trimmedValue = value.trim();
@@ -130,21 +138,54 @@ export function AdminTopbar({ title, user, onLogout }: AdminTopbarProps) {
         </div>
 
         <div className="sanad-top-actions ms-auto">
-          <div className="sanad-user-pill">
-            <div className="sanad-user-avatar">{user?.name?.slice(0, 2) || "س"}</div>
-            <div>
-              <p className="sanad-user-name">{user?.name || "مشرف سَنَد"}</p>
-              <p className="sanad-user-role">مشرف عام</p>
-            </div>
+          <div ref={profileMenuRef} className="relative">
+            <button
+              type="button"
+              className="sanad-user-pill transition hover:border-[var(--teal-700)]"
+              aria-haspopup="menu"
+              aria-expanded={profileMenuOpen}
+              onClick={() => setProfileMenuOpen((value) => !value)}
+            >
+              <div className="sanad-user-avatar">{user?.name?.slice(0, 2) || "س"}</div>
+              <div>
+                <p className="sanad-user-name">{user?.name || "مشرف سَنَد"}</p>
+                <p className="sanad-user-role">مشرف عام</p>
+              </div>
+              <ChevronDown size={15} className="text-[var(--muted)]" />
+            </button>
+
+            {profileMenuOpen ? (
+              <div
+                className="absolute left-0 top-[calc(100%+8px)] z-50 w-44 overflow-hidden rounded-[var(--r-md)] border border-[var(--hairline-2)] bg-[var(--paper)] shadow-[0_18px_45px_rgba(15,49,46,0.14)]"
+                role="menu"
+              >
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 px-3.5 py-3 text-right text-[13.5px] font-semibold text-[var(--text)] transition hover:bg-[var(--cream-2)]"
+                  role="menuitem"
+                  onClick={() => {
+                    setProfileMenuOpen(false);
+                    router.push("/profile");
+                  }}
+                >
+                  <UserRound size={16} />
+                  بياناتي
+                </button>
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 border-t border-[var(--hairline-2)] px-3.5 py-3 text-right text-[13.5px] font-semibold text-[var(--danger-700)] transition hover:bg-[var(--danger-soft)]"
+                  role="menuitem"
+                  onClick={() => {
+                    setProfileMenuOpen(false);
+                    onLogout();
+                  }}
+                >
+                  <LogOut size={16} />
+                  خروج
+                </button>
+              </div>
+            ) : null}
           </div>
-          <button
-            type="button"
-            onClick={onLogout}
-            className="sanad-btn h-9 border-[var(--danger-soft)] bg-[var(--danger-soft)] text-[var(--danger-700)] hover:bg-[#f0d1cc]"
-          >
-            <LogOut size={16} />
-            خروج
-          </button>
         </div>
       </div>
     </header>

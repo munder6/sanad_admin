@@ -1,4 +1,5 @@
 import { apiRequest } from "@/lib/api/apiClient";
+import { normalizeLocalPhoneDisplay } from "@/lib/formatters/number";
 
 export type SuperAdminUser = {
   id: number;
@@ -6,11 +7,13 @@ export type SuperAdminUser = {
   phone: string | null;
   email?: string | null;
   status?: string | null;
+  is_active?: boolean;
   is_suspended?: boolean;
   suspended_at?: string | null;
   suspended_reason?: string | null;
   suspension_message?: string | null;
   role?: string | null;
+  role_label?: string | null;
   is_super_admin: boolean;
   phone_verified_at?: string | null;
   email_verified_at?: string | null;
@@ -19,7 +22,9 @@ export type SuperAdminUser = {
   ledger_entries_count?: number;
   ai_commands_count?: number;
   last_activity_at?: string | null;
+  sms_wallet?: SmsWalletSummary | null;
   created_at?: string | null;
+  updated_at?: string | null;
 };
 
 type RawLoginData = {
@@ -33,6 +38,20 @@ type RawLoginData = {
 export type SuperAdminLoginResponse = {
   token: string;
   user: SuperAdminUser;
+};
+
+export type SuperAdminProfile = SuperAdminUser;
+
+export type UpdateMyProfileInput = {
+  name?: string;
+  phone?: string;
+  email?: string | null;
+};
+
+export type ChangeMyPasswordInput = {
+  current_password: string;
+  password: string;
+  password_confirmation: string;
 };
 
 export type SuperAdminOverview = {
@@ -216,6 +235,7 @@ export type SuperAdminUserDetail = {
   shops: SuperAdminUserShop[];
   recent_transactions: SuperAdminUserRecentTransaction[];
   recent_ai_commands: SuperAdminUserRecentAiCommand[];
+  sms: SuperAdminUserSmsProfile;
   audit_events: SuperAdminUserAuditEvent[];
 };
 
@@ -243,6 +263,58 @@ export type SuperAdminUserResetPayload = {
 };
 
 export type SuperAdminUserResetResponse = {
+  success: boolean;
+  message: string;
+  deleted_counts: Record<string, number>;
+};
+
+export type CreateSuperAdminUserInput = {
+  name: string;
+  phone: string;
+  email?: string | null;
+  password: string;
+  password_confirmation: string;
+  shop_name: string;
+  notes?: string | null;
+};
+
+export type UpdateSuperAdminUserInput = {
+  name?: string;
+  phone?: string;
+  email?: string | null;
+  shop_name?: string;
+  is_active?: boolean;
+  notes?: string | null;
+};
+
+export type ChangeSuperAdminUserPasswordInput = {
+  admin_password: string;
+  password: string;
+  password_confirmation: string;
+};
+
+export type PromoteUserToSuperAdminInput = {
+  admin_password: string;
+  notes?: string | null;
+};
+
+export type SuperAdminUserDeletePreview = {
+  user: Partial<SuperAdminUser>;
+  shops: SuperAdminUserResetShop[];
+  counts: Record<string, number>;
+  warnings: string[];
+  safe_to_delete: boolean;
+  block_message: string | null;
+  block_status: number | null;
+};
+
+export type SuperAdminUserDeletePayload = {
+  admin_password: string;
+  confirmation_text: "DELETE";
+  notes?: string | null;
+};
+
+export type SuperAdminUserDeleteResponse = {
   success: boolean;
   message: string;
   deleted_counts: Record<string, number>;
@@ -1145,6 +1217,265 @@ export type UpdatePlatformSettingsInput = {
   maintenance_support_url?: string;
 };
 
+export type SmsProviderAuthMode = "api_token" | "user_password";
+export type SmsProviderMessageType = "auto" | "0" | "1" | "2";
+export type SmsProviderRequestMethod = "GET" | "POST";
+
+export type SuperAdminSmsProviderSettings = {
+  enabled: boolean;
+  provider: string;
+  auth_mode: SmsProviderAuthMode;
+  user_name: string | null;
+  user_pass_masked: string | null;
+  api_token_masked: string | null;
+  sender: string | null;
+  send_url: string;
+  balance_url: string;
+  default_message_type: SmsProviderMessageType;
+  request_method: SmsProviderRequestMethod;
+  msg_id: boolean;
+  timeout_seconds: number;
+  last_balance: string | null;
+  last_balance_checked_at: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
+export type UpdateSmsProviderSettingsInput = {
+  enabled: boolean;
+  auth_mode: SmsProviderAuthMode;
+  api_token?: string | null;
+  user_name?: string | null;
+  user_pass?: string | null;
+  sender?: string | null;
+  send_url: string;
+  balance_url: string;
+  default_message_type: SmsProviderMessageType;
+  request_method: SmsProviderRequestMethod;
+  msg_id: boolean;
+  timeout_seconds: number;
+};
+
+export type SmsProviderBalanceResult = {
+  success: boolean;
+  balance: string | null;
+  code: string | null;
+  message: string;
+  raw_response?: string | null;
+};
+
+export type SmsProviderTestSendInput = {
+  mobile: string;
+  text: string;
+  type?: SmsProviderMessageType;
+};
+
+export type SmsProviderTestSendResult = {
+  success: boolean;
+  code: string | null;
+  message: string;
+  provider_message_id: string | null;
+  balance_after?: string | null;
+  raw_response?: string | null;
+  warning?: string | null;
+};
+
+export type SmsProviderMessageLog = {
+  id: number;
+  provider: string;
+  sent_by_super_admin_id: number | null;
+  sent_by_name: string | null;
+  shop: SmsEntity | null;
+  user: SmsEntity | null;
+  wallet_id: number | null;
+  wallet_transaction_id: number | null;
+  sms_source: string | null;
+  segments_count: number;
+  balance_before: number | null;
+  mobile: string;
+  mobile_normalized: string | null;
+  sender: string | null;
+  message_text: string;
+  message_type: string | null;
+  provider_code: string | null;
+  provider_message_id: string | null;
+  provider_raw_response: string | null;
+  success: boolean;
+  error_message: string | null;
+  balance_after: string | number | null;
+  sent_at: string | null;
+  created_at: string | null;
+  updated_at?: string | null;
+};
+
+export type SmsProviderMessageLogsParams = {
+  page?: number;
+  per_page?: number;
+  success?: boolean;
+  user_id?: number | string;
+  shop_id?: number | string;
+  wallet_id?: number | string;
+  sms_source?: string;
+  search?: string;
+  date_from?: string;
+  date_to?: string;
+};
+
+export type SmsProviderMessageLogListResponse = {
+  logs: SmsProviderMessageLog[];
+  meta: SuperAdminPaginationMeta;
+};
+
+export type SmsEntity = {
+  id: number | null;
+  name: string | null;
+  phone?: string | null;
+  email?: string | null;
+  status?: string | null;
+};
+
+export type SmsWalletSummary = {
+  id: number | null;
+  shop_id: number | null;
+  user_id: number | null;
+  monthly_quota: number;
+  monthly_used: number;
+  monthly_remaining: number;
+  topup_balance: number;
+  reserved_balance: number;
+  available_balance: number;
+  monthly_period: string | null;
+  sms_enabled: boolean;
+  global_sms_enabled?: boolean;
+  effective_sms_enabled?: boolean;
+  disabled_message?: string | null;
+};
+
+export type SuperAdminSmsOverview = {
+  total_wallets: number;
+  enabled_wallets: number;
+  disabled_wallets: number;
+  total_monthly_quota: number;
+  total_monthly_used: number;
+  total_topup_balance: number;
+  total_available_balance: number;
+  pending_recharge_requests: number;
+  sms_sent_this_month: number;
+  monthly_period: string | null;
+  global_sms_enabled: boolean;
+  default_monthly_quota: number;
+};
+
+export type SuperAdminSmsWallet = SmsWalletSummary & {
+  id: number;
+  shop: SmsEntity | null;
+  user: SmsEntity | null;
+  last_sent_at: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
+export type SuperAdminSmsWalletListResponse = {
+  wallets: SuperAdminSmsWallet[];
+  meta: SuperAdminPaginationMeta;
+};
+
+export type SuperAdminSmsWalletsParams = {
+  page?: number;
+  per_page?: number;
+  search?: string;
+  sms_enabled?: boolean;
+  low_balance?: boolean;
+};
+
+export type SmsWalletTransaction = {
+  id: number;
+  wallet_id: number;
+  shop: SmsEntity | null;
+  user: SmsEntity | null;
+  type: string;
+  quantity: number;
+  balance_before: number | null;
+  balance_after: number | null;
+  monthly_quota_before: number | null;
+  monthly_quota_after: number | null;
+  performed_by_user: SmsEntity | null;
+  performed_by_admin: SmsEntity | null;
+  related_request_id: number | null;
+  related_message_log_id: number | null;
+  notes: string | null;
+  metadata: Record<string, unknown> | unknown[] | null;
+  created_at: string | null;
+  updated_at?: string | null;
+};
+
+export type SmsWalletTransactionListResponse = {
+  transactions: SmsWalletTransaction[];
+  meta: SuperAdminPaginationMeta;
+};
+
+export type SmsWalletTransactionsParams = {
+  page?: number;
+  per_page?: number;
+  wallet_id?: number | string;
+  user_id?: number | string;
+  shop_id?: number | string;
+  type?: string;
+  date_from?: string;
+  date_to?: string;
+};
+
+export type SmsRechargeRequest = {
+  id: number;
+  shop: SmsEntity | null;
+  user: SmsEntity | null;
+  requested_quantity: number;
+  notes: string | null;
+  status: string;
+  approved_quantity: number | null;
+  admin_notes: string | null;
+  reviewed_by_admin: SmsEntity | null;
+  reviewed_at: string | null;
+  created_at: string | null;
+  updated_at?: string | null;
+};
+
+export type SmsRechargeRequestListResponse = {
+  requests: SmsRechargeRequest[];
+  meta: SuperAdminPaginationMeta;
+};
+
+export type SmsRechargeRequestsParams = {
+  page?: number;
+  per_page?: number;
+  search?: string;
+  status?: string;
+  user_id?: number | string;
+  shop_id?: number | string;
+  date_from?: string;
+  date_to?: string;
+};
+
+export type SuperAdminSmsWalletDetail = {
+  wallet: SuperAdminSmsWallet;
+  transactions: SmsWalletTransaction[];
+  message_logs: SmsProviderMessageLog[];
+  recharge_requests: SmsRechargeRequest[];
+};
+
+export type SuperAdminUserSmsProfile = {
+  summary: SmsWalletSummary | null;
+  wallets: {
+    id: number;
+    shop: SmsEntity | null;
+    user: SmsEntity | null;
+    summary: SmsWalletSummary;
+  }[];
+  message_logs: SmsProviderMessageLog[];
+  transactions: SmsWalletTransaction[];
+  recharge_requests: SmsRechargeRequest[];
+};
+
 type RawPlatformSetting = Partial<Omit<SuperAdminPlatformSetting, "key">> & {
   key?: string | null;
 };
@@ -1153,6 +1484,18 @@ type RawPlatformSettingsResponse = {
   settings?: RawPlatformSetting[];
   status?: Partial<SuperAdminAppStatus>;
 };
+
+type RawSmsProviderSettings = Partial<SuperAdminSmsProviderSettings>;
+type RawSmsProviderBalanceResult = Partial<SmsProviderBalanceResult>;
+type RawSmsProviderTestSendResult = Partial<SmsProviderTestSendResult>;
+type RawSmsProviderMessageLog = Partial<SmsProviderMessageLog>;
+type RawSmsEntity = Partial<SmsEntity>;
+type RawSmsWalletSummary = Partial<SmsWalletSummary>;
+type RawSuperAdminSmsOverview = Partial<SuperAdminSmsOverview>;
+type RawSuperAdminSmsWallet = Partial<SuperAdminSmsWallet>;
+type RawSmsWalletTransaction = Partial<SmsWalletTransaction>;
+type RawSmsRechargeRequest = Partial<SmsRechargeRequest>;
+type RawSuperAdminSmsWalletDetail = Partial<SuperAdminSmsWalletDetail>;
 
 export const emptyOverview: SuperAdminOverview = {
   shops_count: 0,
@@ -1221,6 +1564,40 @@ export const superAdminApi = {
     return normalizeUser(user);
   },
 
+  async getMyProfile(): Promise<SuperAdminProfile> {
+    const response = await apiRequest<Partial<SuperAdminProfile>>("/super-admin/profile");
+    return normalizeUser(response.data);
+  },
+
+  async updateMyProfile(payload: UpdateMyProfileInput): Promise<SuperAdminProfile> {
+    const response = await apiRequest<Partial<SuperAdminProfile>>("/super-admin/profile", {
+      method: "PATCH",
+      body: {
+        name: payload.name?.trim(),
+        phone: payload.phone?.trim(),
+        email: payload.email?.trim() || null,
+      },
+    });
+
+    return normalizeUser(response.data);
+  },
+
+  async changeMyPassword(payload: ChangeMyPasswordInput): Promise<{ success: boolean; message: string }> {
+    const response = await apiRequest<{ success?: boolean }>("/super-admin/profile/password", {
+      method: "PATCH",
+      body: {
+        current_password: payload.current_password,
+        password: payload.password,
+        password_confirmation: payload.password_confirmation,
+      },
+    });
+
+    return {
+      success: Boolean(response.data?.success ?? response.success),
+      message: response.message ?? "تم تغيير كلمة المرور بنجاح.",
+    };
+  },
+
   async logout(): Promise<void> {
     await apiRequest("/super-admin/auth/logout", { method: "POST" });
   },
@@ -1286,6 +1663,73 @@ export const superAdminApi = {
     return normalizeUserDetail(response.data);
   },
 
+  async createUser(payload: CreateSuperAdminUserInput): Promise<SuperAdminUserDetail> {
+    const response = await apiRequest<Partial<SuperAdminUserDetail>>("/super-admin/users", {
+      method: "POST",
+      body: {
+        name: payload.name.trim(),
+        phone: payload.phone.trim(),
+        email: payload.email?.trim() || null,
+        password: payload.password,
+        password_confirmation: payload.password_confirmation,
+        shop_name: payload.shop_name.trim(),
+        notes: payload.notes?.trim() || null,
+      },
+    });
+
+    return normalizeUserDetail(response.data);
+  },
+
+  async updateUser(id: number | string, payload: UpdateSuperAdminUserInput): Promise<SuperAdminUserDetail> {
+    const response = await apiRequest<Partial<SuperAdminUserDetail>>(`/super-admin/users/${id}`, {
+      method: "PATCH",
+      body: {
+        name: payload.name?.trim(),
+        phone: payload.phone?.trim(),
+        email: payload.email?.trim() || null,
+        shop_name: payload.shop_name?.trim(),
+        is_active: payload.is_active,
+        notes: payload.notes?.trim() || null,
+      },
+    });
+
+    return normalizeUserDetail(response.data);
+  },
+
+  async changeUserPassword(
+    id: number | string,
+    payload: ChangeSuperAdminUserPasswordInput,
+  ): Promise<{ success: boolean; message: string }> {
+    const response = await apiRequest<{ success?: boolean }>(`/super-admin/users/${id}/password`, {
+      method: "PATCH",
+      body: {
+        admin_password: payload.admin_password,
+        password: payload.password,
+        password_confirmation: payload.password_confirmation,
+      },
+    });
+
+    return {
+      success: Boolean(response.data?.success ?? response.success),
+      message: response.message ?? "تم تحديث كلمة مرور المستخدم بنجاح.",
+    };
+  },
+
+  async promoteUserToSuperAdmin(
+    id: number | string,
+    payload: PromoteUserToSuperAdminInput,
+  ): Promise<SuperAdminUserDetail> {
+    const response = await apiRequest<Partial<SuperAdminUserDetail>>(`/super-admin/users/${id}/promote-to-super-admin`, {
+      method: "POST",
+      body: {
+        admin_password: payload.admin_password,
+        notes: payload.notes?.trim() || null,
+      },
+    });
+
+    return normalizeUserDetail(response.data);
+  },
+
   async getUserResetPreview(id: number | string): Promise<SuperAdminUserResetPreview> {
     const response = await apiRequest<Partial<SuperAdminUserResetPreview>>(`/super-admin/users/${id}/reset-preview`);
     return normalizeUserResetPreview(response.data);
@@ -1332,6 +1776,31 @@ export const superAdminApi = {
     });
 
     return normalizeUserDetail(response.data);
+  },
+
+  async getUserDeletePreview(id: number | string): Promise<SuperAdminUserDeletePreview> {
+    const response = await apiRequest<Partial<SuperAdminUserDeletePreview>>(`/super-admin/users/${id}/delete-preview`);
+    return normalizeUserDeletePreview(response.data);
+  },
+
+  async deleteUser(
+    id: number | string,
+    payload: SuperAdminUserDeletePayload,
+  ): Promise<SuperAdminUserDeleteResponse> {
+    const response = await apiRequest<Partial<SuperAdminUserDeleteResponse>>(`/super-admin/users/${id}`, {
+      method: "DELETE",
+      body: {
+        admin_password: payload.admin_password,
+        confirmation_text: payload.confirmation_text,
+        notes: payload.notes?.trim() || null,
+      },
+    });
+
+    return {
+      success: Boolean(response.data?.success ?? response.success),
+      message: response.data?.message ?? response.message ?? "تم حذف الحساب نهائيًا بنجاح.",
+      deleted_counts: normalizeResetCounts(response.data?.deleted_counts),
+    };
   },
 
   async getCustomers(params: SuperAdminCustomersParams = {}): Promise<SuperAdminCustomerListResponse> {
@@ -1470,20 +1939,213 @@ export const superAdminApi = {
 
     return normalizePlatformSettingsResponse(response.data);
   },
+
+  async getSmsOverview(): Promise<SuperAdminSmsOverview> {
+    const response = await apiRequest<RawSuperAdminSmsOverview>("/super-admin/sms/overview");
+    return normalizeSmsOverview(response.data);
+  },
+
+  async getSmsWallets(params: SuperAdminSmsWalletsParams = {}): Promise<SuperAdminSmsWalletListResponse> {
+    const query = buildQuery(params);
+    const response = await apiRequest<RawSuperAdminSmsWallet[]>(`/super-admin/sms/wallets${query}`);
+
+    return {
+      wallets: Array.isArray(response.data) ? response.data.map(normalizeSmsWallet) : [],
+      meta: normalizePaginationMeta(response.meta),
+    };
+  },
+
+  async getSmsWallet(id: number | string): Promise<SuperAdminSmsWalletDetail> {
+    const response = await apiRequest<RawSuperAdminSmsWalletDetail>(`/super-admin/sms/wallets/${id}`);
+    return normalizeSmsWalletDetail(response.data);
+  },
+
+  async updateSmsWallet(
+    id: number | string,
+    input: { monthly_quota?: number; sms_enabled?: boolean; notes?: string | null },
+  ): Promise<SuperAdminSmsWallet> {
+    const response = await apiRequest<RawSuperAdminSmsWallet>(`/super-admin/sms/wallets/${id}`, {
+      method: "PATCH",
+      body: {
+        monthly_quota: input.monthly_quota,
+        sms_enabled: input.sms_enabled,
+        notes: input.notes?.trim() || null,
+      },
+    });
+
+    return normalizeSmsWallet(response.data);
+  },
+
+  async topupSmsWallet(id: number | string, input: { quantity: number; notes?: string | null }): Promise<SuperAdminSmsWallet> {
+    const response = await apiRequest<RawSuperAdminSmsWallet>(`/super-admin/sms/wallets/${id}/topup`, {
+      method: "POST",
+      body: {
+        quantity: input.quantity,
+        notes: input.notes?.trim() || null,
+      },
+    });
+
+    return normalizeSmsWallet(response.data);
+  },
+
+  async bulkTopupSmsWallets(input: { scope: "all" | "selected"; wallet_ids?: number[]; quantity: number; notes?: string | null }): Promise<{ affected_count: number }> {
+    const response = await apiRequest<{ affected_count?: number }>("/super-admin/sms/wallets/bulk-topup", {
+      method: "POST",
+      body: {
+        scope: input.scope,
+        wallet_ids: input.wallet_ids ?? [],
+        quantity: input.quantity,
+        notes: input.notes?.trim() || null,
+      },
+    });
+
+    return { affected_count: toNumber(response.data?.affected_count) };
+  },
+
+  async bulkUpdateSmsQuota(input: { scope: "all" | "selected"; wallet_ids?: number[]; monthly_quota: number; notes?: string | null }): Promise<{ affected_count: number }> {
+    const response = await apiRequest<{ affected_count?: number }>("/super-admin/sms/wallets/bulk-update-quota", {
+      method: "POST",
+      body: {
+        scope: input.scope,
+        wallet_ids: input.wallet_ids ?? [],
+        monthly_quota: input.monthly_quota,
+        notes: input.notes?.trim() || null,
+      },
+    });
+
+    return { affected_count: toNumber(response.data?.affected_count) };
+  },
+
+  async bulkToggleSmsWallets(input: { scope: "all" | "selected"; wallet_ids?: number[]; sms_enabled: boolean; notes?: string | null }): Promise<{ affected_count: number }> {
+    const response = await apiRequest<{ affected_count?: number }>("/super-admin/sms/wallets/bulk-toggle", {
+      method: "POST",
+      body: {
+        scope: input.scope,
+        wallet_ids: input.wallet_ids ?? [],
+        sms_enabled: input.sms_enabled,
+        notes: input.notes?.trim() || null,
+      },
+    });
+
+    return { affected_count: toNumber(response.data?.affected_count) };
+  },
+
+  async getSmsRechargeRequests(params: SmsRechargeRequestsParams = {}): Promise<SmsRechargeRequestListResponse> {
+    const query = buildQuery(params);
+    const response = await apiRequest<RawSmsRechargeRequest[]>(`/super-admin/sms/recharge-requests${query}`);
+
+    return {
+      requests: Array.isArray(response.data) ? response.data.map(normalizeSmsRechargeRequest) : [],
+      meta: normalizePaginationMeta(response.meta),
+    };
+  },
+
+  async approveSmsRechargeRequest(id: number | string, input: { approved_quantity: number; admin_notes?: string | null }): Promise<SmsRechargeRequest> {
+    const response = await apiRequest<RawSmsRechargeRequest>(`/super-admin/sms/recharge-requests/${id}/approve`, {
+      method: "POST",
+      body: {
+        approved_quantity: input.approved_quantity,
+        admin_notes: input.admin_notes?.trim() || null,
+      },
+    });
+
+    return normalizeSmsRechargeRequest(response.data);
+  },
+
+  async rejectSmsRechargeRequest(id: number | string, input: { admin_notes?: string | null }): Promise<SmsRechargeRequest> {
+    const response = await apiRequest<RawSmsRechargeRequest>(`/super-admin/sms/recharge-requests/${id}/reject`, {
+      method: "POST",
+      body: {
+        admin_notes: input.admin_notes?.trim() || null,
+      },
+    });
+
+    return normalizeSmsRechargeRequest(response.data);
+  },
+
+  async getSmsWalletTransactions(params: SmsWalletTransactionsParams = {}): Promise<SmsWalletTransactionListResponse> {
+    const query = buildQuery(params);
+    const response = await apiRequest<RawSmsWalletTransaction[]>(`/super-admin/sms/wallet-transactions${query}`);
+
+    return {
+      transactions: Array.isArray(response.data) ? response.data.map(normalizeSmsWalletTransaction) : [],
+      meta: normalizePaginationMeta(response.meta),
+    };
+  },
+
+  async getSmsProviderSettings(): Promise<SuperAdminSmsProviderSettings> {
+    const response = await apiRequest<RawSmsProviderSettings>("/super-admin/sms/provider-settings");
+    return normalizeSmsProviderSettings(response.data);
+  },
+
+  async updateSmsProviderSettings(input: UpdateSmsProviderSettingsInput): Promise<SuperAdminSmsProviderSettings> {
+    const response = await apiRequest<RawSmsProviderSettings>("/super-admin/sms/provider-settings", {
+      method: "PUT",
+      body: {
+        enabled: input.enabled,
+        auth_mode: input.auth_mode,
+        api_token: input.api_token?.trim() || null,
+        user_name: input.user_name?.trim() || null,
+        user_pass: input.user_pass?.trim() || null,
+        sender: input.sender?.trim() || null,
+        send_url: input.send_url.trim(),
+        balance_url: input.balance_url.trim(),
+        default_message_type: input.default_message_type,
+        request_method: input.request_method,
+        msg_id: input.msg_id,
+        timeout_seconds: input.timeout_seconds,
+      },
+    });
+
+    return normalizeSmsProviderSettings(response.data);
+  },
+
+  async checkSmsProviderBalance(): Promise<SmsProviderBalanceResult> {
+    const response = await apiRequest<RawSmsProviderBalanceResult>("/super-admin/sms/provider-balance", {
+      method: "POST",
+    });
+
+    return normalizeSmsProviderBalanceResult(response.data);
+  },
+
+  async sendSmsProviderTest(input: SmsProviderTestSendInput): Promise<SmsProviderTestSendResult> {
+    const response = await apiRequest<RawSmsProviderTestSendResult>("/super-admin/sms/test-send", {
+      method: "POST",
+      body: {
+        mobile: input.mobile.trim(),
+        text: input.text.trim(),
+        type: input.type ?? "auto",
+      },
+    });
+
+    return normalizeSmsProviderTestSendResult(response.data);
+  },
+
+  async getSmsProviderMessageLogs(params: SmsProviderMessageLogsParams = {}): Promise<SmsProviderMessageLogListResponse> {
+    const query = buildQuery(params);
+    const response = await apiRequest<RawSmsProviderMessageLog[]>(`/super-admin/sms/message-logs${query}`);
+
+    return {
+      logs: Array.isArray(response.data) ? response.data.map(normalizeSmsProviderMessageLog) : [],
+      meta: normalizePaginationMeta(response.meta),
+    };
+  },
 };
 
 function normalizeUser(rawUser?: Partial<SuperAdminUser>): SuperAdminUser {
   return {
     id: toNumber(rawUser?.id),
     name: String(rawUser?.name ?? "مشرف سَنَد"),
-    phone: rawUser?.phone ?? null,
+    phone: normalizePhoneValue(rawUser?.phone),
     email: rawUser?.email ?? null,
     status: rawUser?.status ?? null,
+    is_active: rawUser?.is_active ?? rawUser?.status === "active",
     is_suspended: Boolean(rawUser?.is_suspended),
     suspended_at: rawUser?.suspended_at ?? null,
     suspended_reason: rawUser?.suspended_reason ?? null,
     suspension_message: rawUser?.suspension_message ?? null,
     role: rawUser?.role ?? null,
+    role_label: rawUser?.role_label ?? null,
     is_super_admin: Boolean(rawUser?.is_super_admin),
     phone_verified_at: rawUser?.phone_verified_at ?? null,
     email_verified_at: rawUser?.email_verified_at ?? null,
@@ -1492,7 +2154,9 @@ function normalizeUser(rawUser?: Partial<SuperAdminUser>): SuperAdminUser {
     ledger_entries_count: toNumber(rawUser?.ledger_entries_count),
     ai_commands_count: toNumber(rawUser?.ai_commands_count),
     last_activity_at: rawUser?.last_activity_at ?? null,
+    sms_wallet: rawUser?.sms_wallet ? normalizeSmsWalletSummary(rawUser.sms_wallet) : null,
     created_at: rawUser?.created_at ?? null,
+    updated_at: rawUser?.updated_at ?? null,
   };
 }
 
@@ -1545,6 +2209,214 @@ function normalizeAppStatus(raw?: Partial<SuperAdminAppStatus>): SuperAdminAppSt
   };
 }
 
+function normalizeSmsEntity(raw?: RawSmsEntity | null): SmsEntity | null {
+  if (!raw) return null;
+
+  return {
+    id: raw.id === null || raw.id === undefined ? null : toNumber(raw.id),
+    name: raw.name ?? null,
+    phone: normalizePhoneValue(raw.phone),
+    email: raw.email ?? null,
+    status: raw.status ?? null,
+  };
+}
+
+function normalizeSmsWalletSummary(raw?: RawSmsWalletSummary | null): SmsWalletSummary {
+  return {
+    id: raw?.id === null || raw?.id === undefined ? null : toNumber(raw.id),
+    shop_id: raw?.shop_id === null || raw?.shop_id === undefined ? null : toNumber(raw.shop_id),
+    user_id: raw?.user_id === null || raw?.user_id === undefined ? null : toNumber(raw.user_id),
+    monthly_quota: toNumber(raw?.monthly_quota),
+    monthly_used: toNumber(raw?.monthly_used),
+    monthly_remaining: toNumber(raw?.monthly_remaining),
+    topup_balance: toNumber(raw?.topup_balance),
+    reserved_balance: toNumber(raw?.reserved_balance),
+    available_balance: toNumber(raw?.available_balance),
+    monthly_period: raw?.monthly_period ?? null,
+    sms_enabled: toBoolean(raw?.sms_enabled),
+    global_sms_enabled: raw?.global_sms_enabled === undefined ? undefined : toBoolean(raw.global_sms_enabled),
+    effective_sms_enabled: raw?.effective_sms_enabled === undefined ? undefined : toBoolean(raw.effective_sms_enabled),
+    disabled_message: raw?.disabled_message ?? null,
+  };
+}
+
+function normalizeSmsOverview(raw?: RawSuperAdminSmsOverview): SuperAdminSmsOverview {
+  return {
+    total_wallets: toNumber(raw?.total_wallets),
+    enabled_wallets: toNumber(raw?.enabled_wallets),
+    disabled_wallets: toNumber(raw?.disabled_wallets),
+    total_monthly_quota: toNumber(raw?.total_monthly_quota),
+    total_monthly_used: toNumber(raw?.total_monthly_used),
+    total_topup_balance: toNumber(raw?.total_topup_balance),
+    total_available_balance: toNumber(raw?.total_available_balance),
+    pending_recharge_requests: toNumber(raw?.pending_recharge_requests),
+    sms_sent_this_month: toNumber(raw?.sms_sent_this_month),
+    monthly_period: raw?.monthly_period ?? null,
+    global_sms_enabled: raw?.global_sms_enabled === undefined ? true : toBoolean(raw.global_sms_enabled),
+    default_monthly_quota: toNumber(raw?.default_monthly_quota),
+  };
+}
+
+function normalizeSmsWallet(raw?: RawSuperAdminSmsWallet): SuperAdminSmsWallet {
+  const summary = normalizeSmsWalletSummary(raw);
+
+  return {
+    ...summary,
+    id: toNumber(raw?.id ?? summary.id),
+    shop: normalizeSmsEntity(raw?.shop),
+    user: normalizeSmsEntity(raw?.user),
+    last_sent_at: raw?.last_sent_at ?? null,
+    created_at: raw?.created_at ?? null,
+    updated_at: raw?.updated_at ?? null,
+  };
+}
+
+function normalizeSmsWalletTransaction(raw?: RawSmsWalletTransaction): SmsWalletTransaction {
+  return {
+    id: toNumber(raw?.id),
+    wallet_id: toNumber(raw?.wallet_id),
+    shop: normalizeSmsEntity(raw?.shop),
+    user: normalizeSmsEntity(raw?.user),
+    type: String(raw?.type ?? ""),
+    quantity: toNumber(raw?.quantity),
+    balance_before: raw?.balance_before === null || raw?.balance_before === undefined ? null : toNumber(raw.balance_before),
+    balance_after: raw?.balance_after === null || raw?.balance_after === undefined ? null : toNumber(raw.balance_after),
+    monthly_quota_before: raw?.monthly_quota_before === null || raw?.monthly_quota_before === undefined ? null : toNumber(raw.monthly_quota_before),
+    monthly_quota_after: raw?.monthly_quota_after === null || raw?.monthly_quota_after === undefined ? null : toNumber(raw.monthly_quota_after),
+    performed_by_user: normalizeSmsEntity(raw?.performed_by_user),
+    performed_by_admin: normalizeSmsEntity(raw?.performed_by_admin),
+    related_request_id: raw?.related_request_id === null || raw?.related_request_id === undefined ? null : toNumber(raw.related_request_id),
+    related_message_log_id: raw?.related_message_log_id === null || raw?.related_message_log_id === undefined ? null : toNumber(raw.related_message_log_id),
+    notes: raw?.notes ?? null,
+    metadata: raw?.metadata ?? null,
+    created_at: raw?.created_at ?? null,
+    updated_at: raw?.updated_at ?? null,
+  };
+}
+
+function normalizeSmsRechargeRequest(raw?: RawSmsRechargeRequest): SmsRechargeRequest {
+  return {
+    id: toNumber(raw?.id),
+    shop: normalizeSmsEntity(raw?.shop),
+    user: normalizeSmsEntity(raw?.user),
+    requested_quantity: toNumber(raw?.requested_quantity),
+    notes: raw?.notes ?? null,
+    status: String(raw?.status ?? "pending"),
+    approved_quantity: raw?.approved_quantity === null || raw?.approved_quantity === undefined ? null : toNumber(raw.approved_quantity),
+    admin_notes: raw?.admin_notes ?? null,
+    reviewed_by_admin: normalizeSmsEntity(raw?.reviewed_by_admin),
+    reviewed_at: raw?.reviewed_at ?? null,
+    created_at: raw?.created_at ?? null,
+    updated_at: raw?.updated_at ?? null,
+  };
+}
+
+function normalizeSmsWalletDetail(raw?: RawSuperAdminSmsWalletDetail): SuperAdminSmsWalletDetail {
+  return {
+    wallet: normalizeSmsWallet(raw?.wallet),
+    transactions: Array.isArray(raw?.transactions) ? raw.transactions.map(normalizeSmsWalletTransaction) : [],
+    message_logs: Array.isArray(raw?.message_logs) ? raw.message_logs.map(normalizeSmsProviderMessageLog) : [],
+    recharge_requests: Array.isArray(raw?.recharge_requests) ? raw.recharge_requests.map(normalizeSmsRechargeRequest) : [],
+  };
+}
+
+function normalizeUserSmsProfile(raw?: Partial<SuperAdminUserSmsProfile> | null): SuperAdminUserSmsProfile {
+  return {
+    summary: raw?.summary ? normalizeSmsWalletSummary(raw.summary) : null,
+    wallets: Array.isArray(raw?.wallets)
+      ? raw.wallets.map((wallet) => ({
+          id: toNumber(wallet.id),
+          shop: normalizeSmsEntity(wallet.shop),
+          user: normalizeSmsEntity(wallet.user),
+          summary: normalizeSmsWalletSummary(wallet.summary),
+        }))
+      : [],
+    message_logs: Array.isArray(raw?.message_logs) ? raw.message_logs.map(normalizeSmsProviderMessageLog) : [],
+    transactions: Array.isArray(raw?.transactions) ? raw.transactions.map(normalizeSmsWalletTransaction) : [],
+    recharge_requests: Array.isArray(raw?.recharge_requests) ? raw.recharge_requests.map(normalizeSmsRechargeRequest) : [],
+  };
+}
+
+function normalizeSmsProviderSettings(raw?: RawSmsProviderSettings): SuperAdminSmsProviderSettings {
+  const authMode = raw?.auth_mode === "user_password" ? "user_password" : "api_token";
+  const messageType = isSmsProviderMessageType(raw?.default_message_type) ? raw.default_message_type : "auto";
+  const requestMethod = raw?.request_method === "GET" ? "GET" : "POST";
+
+  return {
+    enabled: toBoolean(raw?.enabled),
+    provider: String(raw?.provider ?? "hotsms"),
+    auth_mode: authMode,
+    user_name: raw?.user_name ?? null,
+    user_pass_masked: raw?.user_pass_masked ?? null,
+    api_token_masked: raw?.api_token_masked ?? null,
+    sender: raw?.sender ?? null,
+    send_url: String(raw?.send_url ?? "http://hotsms.ps/sendbulksms.php"),
+    balance_url: String(raw?.balance_url ?? "http://hotsms.ps/getbalance.php"),
+    default_message_type: messageType,
+    request_method: requestMethod,
+    msg_id: raw?.msg_id === undefined ? true : toBoolean(raw.msg_id),
+    timeout_seconds: toNumber(raw?.timeout_seconds) || 15,
+    last_balance: toNullableString(raw?.last_balance),
+    last_balance_checked_at: raw?.last_balance_checked_at ?? null,
+    created_at: raw?.created_at ?? null,
+    updated_at: raw?.updated_at ?? null,
+  };
+}
+
+function normalizeSmsProviderBalanceResult(raw?: RawSmsProviderBalanceResult): SmsProviderBalanceResult {
+  return {
+    success: toBoolean(raw?.success),
+    balance: toNullableString(raw?.balance),
+    code: toNullableString(raw?.code),
+    message: String(raw?.message ?? "تعذر فحص رصيد مزود الرسائل."),
+    raw_response: toNullableString(raw?.raw_response),
+  };
+}
+
+function normalizeSmsProviderTestSendResult(raw?: RawSmsProviderTestSendResult): SmsProviderTestSendResult {
+  return {
+    success: toBoolean(raw?.success),
+    code: toNullableString(raw?.code),
+    message: String(raw?.message ?? "تعذر إرسال الرسالة التجريبية."),
+    provider_message_id: toNullableString(raw?.provider_message_id),
+    balance_after: toNullableString(raw?.balance_after),
+    raw_response: toNullableString(raw?.raw_response),
+    warning: toNullableString(raw?.warning),
+  };
+}
+
+function normalizeSmsProviderMessageLog(raw?: RawSmsProviderMessageLog): SmsProviderMessageLog {
+  return {
+    id: toNumber(raw?.id),
+    provider: String(raw?.provider ?? "hotsms"),
+    sent_by_super_admin_id: raw?.sent_by_super_admin_id === undefined || raw.sent_by_super_admin_id === null
+      ? null
+      : toNumber(raw.sent_by_super_admin_id),
+    sent_by_name: raw?.sent_by_name ?? null,
+    shop: normalizeSmsEntity(raw?.shop),
+    user: normalizeSmsEntity(raw?.user),
+    wallet_id: raw?.wallet_id === undefined || raw?.wallet_id === null ? null : toNumber(raw.wallet_id),
+    wallet_transaction_id: raw?.wallet_transaction_id === undefined || raw?.wallet_transaction_id === null ? null : toNumber(raw.wallet_transaction_id),
+    sms_source: toNullableString(raw?.sms_source),
+    segments_count: toNumber(raw?.segments_count) || 1,
+    balance_before: raw?.balance_before === undefined || raw?.balance_before === null ? null : toNumber(raw.balance_before),
+    mobile: normalizePhoneValue(raw?.mobile) ?? "",
+    mobile_normalized: normalizePhoneValue(raw?.mobile_normalized),
+    sender: raw?.sender ?? null,
+    message_text: String(raw?.message_text ?? ""),
+    message_type: toNullableString(raw?.message_type),
+    provider_code: toNullableString(raw?.provider_code),
+    provider_message_id: toNullableString(raw?.provider_message_id),
+    provider_raw_response: toNullableString(raw?.provider_raw_response),
+    success: toBoolean(raw?.success),
+    error_message: toNullableString(raw?.error_message),
+    balance_after: raw?.balance_after ?? null,
+    sent_at: raw?.sent_at ?? null,
+    created_at: raw?.created_at ?? null,
+    updated_at: raw?.updated_at ?? null,
+  };
+}
+
 function isKnownPlatformSettingPayload(setting: RawPlatformSetting): boolean {
   return isKnownPlatformSettingKey(setting.key);
 }
@@ -1563,6 +2435,10 @@ function isKnownPlatformSettingKey(key?: string | null): key is SuperAdminPlatfo
 
 function isKnownFeatureFlagPayload(flag: RawFeatureFlag): boolean {
   return flag.key === "public_registration_enabled";
+}
+
+function isSmsProviderMessageType(value: unknown): value is SmsProviderMessageType {
+  return value === "auto" || value === "0" || value === "1" || value === "2";
 }
 
 function hasUserPayload(value: unknown): value is { user?: Partial<SuperAdminUser> } {
@@ -1639,7 +2515,7 @@ function normalizeSearchResult(raw: Partial<SuperAdminSearchResult>): SuperAdmin
   return {
     type: String(raw.type ?? "result"),
     label: String(raw.label ?? ""),
-    subtitle: raw.subtitle ?? null,
+    subtitle: normalizePhoneText(raw.subtitle),
     url: String(raw.url ?? "/dashboard"),
   };
 }
@@ -1661,6 +2537,58 @@ function toBoolean(value: unknown): boolean {
   if (typeof value === "number") return value === 1;
   if (typeof value === "string") return ["1", "true", "yes", "on"].includes(value.toLowerCase());
   return false;
+}
+
+function toNullableString(value: unknown): string | null {
+  if (value === undefined || value === null || value === "") return null;
+  return String(value);
+}
+
+function normalizePhoneValue(value: unknown): string | null {
+  const text = toNullableString(value);
+  if (!text) return null;
+
+  return normalizeLocalPhoneDisplay(text) ?? text;
+}
+
+function normalizePhoneText(value: unknown): string | null {
+  const text = toNullableString(value);
+  if (!text) return null;
+
+  return text.replace(/\+?(?:970|972)\d{9}|0\d{9}/g, (match) => normalizeLocalPhoneDisplay(match) ?? match);
+}
+
+type PhoneLikeEntity = { phone?: string | null };
+type NestedPhoneLikeEntity = PhoneLikeEntity & { owner?: PhoneLikeEntity | null };
+
+function normalizePhoneEntity<T extends object>(entity: T): T;
+function normalizePhoneEntity<T extends object>(entity?: T | null): T | null;
+function normalizePhoneEntity<T extends object>(entity?: T | null): T | null {
+  if (!entity) return null;
+
+  const normalized = {
+    ...entity,
+  } as T & PhoneLikeEntity;
+
+  if ("phone" in normalized) {
+    normalized.phone = normalizePhoneValue(normalized.phone);
+  }
+
+  return normalized as T;
+}
+
+function normalizeNestedPhoneEntity<T extends object>(entity: T): T;
+function normalizeNestedPhoneEntity<T extends object>(entity?: T | null): T | null;
+function normalizeNestedPhoneEntity<T extends object>(entity?: T | null): T | null {
+  if (!entity) return null;
+
+  const normalized = normalizePhoneEntity(entity) as T & NestedPhoneLikeEntity;
+
+  if ("owner" in normalized) {
+    normalized.owner = normalizePhoneEntity(normalized.owner);
+  }
+
+  return normalized as T;
 }
 
 function normalizeUserDetail(raw?: Partial<SuperAdminUserDetail>): SuperAdminUserDetail {
@@ -1686,13 +2614,14 @@ function normalizeUserDetail(raw?: Partial<SuperAdminUserDetail>): SuperAdminUse
     shops: Array.isArray(raw?.shops) ? raw.shops.map(normalizeUserShop) : [],
     recent_transactions: Array.isArray(raw?.recent_transactions) ? raw.recent_transactions.map(normalizeUserTransaction) : [],
     recent_ai_commands: Array.isArray(raw?.recent_ai_commands) ? raw.recent_ai_commands.map(normalizeUserAiCommand) : [],
+    sms: normalizeUserSmsProfile(raw?.sms),
     audit_events: Array.isArray(raw?.audit_events) ? raw.audit_events.map(normalizeUserAuditEvent) : [],
   };
 }
 
 function normalizeUserResetPreview(raw?: Partial<SuperAdminUserResetPreview>): SuperAdminUserResetPreview {
   return {
-    user: raw?.user ?? {},
+    user: normalizeUser(raw?.user),
     shops: Array.isArray(raw?.shops) ? raw.shops.map((shop) => ({
       id: toNumber(shop.id),
       name: shop.name ?? null,
@@ -1702,6 +2631,23 @@ function normalizeUserResetPreview(raw?: Partial<SuperAdminUserResetPreview>): S
     counts: normalizeResetCounts(raw?.counts),
     warnings: Array.isArray(raw?.warnings) ? raw.warnings.map(String) : [],
     safe_to_reset: Boolean(raw?.safe_to_reset),
+    block_message: raw?.block_message ?? null,
+    block_status: raw?.block_status === null || raw?.block_status === undefined ? null : toNumber(raw.block_status),
+  };
+}
+
+function normalizeUserDeletePreview(raw?: Partial<SuperAdminUserDeletePreview>): SuperAdminUserDeletePreview {
+  return {
+    user: normalizeUser(raw?.user),
+    shops: Array.isArray(raw?.shops) ? raw.shops.map((shop) => ({
+      id: toNumber(shop.id),
+      name: shop.name ?? null,
+      status: shop.status ?? null,
+      owner_user_id: shop.owner_user_id === null || shop.owner_user_id === undefined ? null : toNumber(shop.owner_user_id),
+    })) : [],
+    counts: normalizeResetCounts(raw?.counts),
+    warnings: Array.isArray(raw?.warnings) ? raw.warnings.map(String) : [],
+    safe_to_delete: Boolean(raw?.safe_to_delete),
     block_message: raw?.block_message ?? null,
     block_status: raw?.block_status === null || raw?.block_status === undefined ? null : toNumber(raw.block_status),
   };
@@ -1731,8 +2677,8 @@ function normalizeUserShop(raw: Partial<SuperAdminUserShop>): SuperAdminUserShop
 function normalizeUserTransaction(raw: Partial<SuperAdminUserRecentTransaction>): SuperAdminUserRecentTransaction {
   return {
     id: toNumber(raw.id),
-    shop: raw.shop ?? null,
-    customer: raw.customer ?? null,
+    shop: normalizeNestedPhoneEntity(raw.shop),
+    customer: normalizePhoneEntity(raw.customer),
     entry_type: raw.entry_type ?? null,
     amount_minor: raw.amount_minor ?? null,
     signed_amount_minor: raw.signed_amount_minor ?? null,
@@ -1786,7 +2732,7 @@ function normalizeShop(raw: Partial<SuperAdminShop>): SuperAdminShop {
     id: toNumber(raw.id),
     uuid: raw.uuid ?? null,
     name: raw.name ?? null,
-    owner: raw.owner ?? null,
+    owner: normalizePhoneEntity(raw.owner),
     city: raw.city ?? null,
     business_type: raw.business_type ?? null,
     currency: raw.currency ?? null,
@@ -1817,7 +2763,7 @@ function normalizeShopDetail(raw?: Partial<SuperAdminShopDetail>): SuperAdminSho
       created_at: shop.created_at ?? null,
       updated_at: shop.updated_at ?? null,
     },
-    owner: raw?.owner ?? null,
+    owner: normalizePhoneEntity(raw?.owner),
     summary: {
       customers_count: toNumber(summary.customers_count),
       ledger_entries_count: toNumber(summary.ledger_entries_count),
@@ -1830,7 +2776,9 @@ function normalizeShopDetail(raw?: Partial<SuperAdminShopDetail>): SuperAdminSho
     },
     recent_transactions: Array.isArray(raw?.recent_transactions) ? raw.recent_transactions : [],
     recent_ai_commands: Array.isArray(raw?.recent_ai_commands) ? raw.recent_ai_commands : [],
-    top_debt_customers: Array.isArray(raw?.top_debt_customers) ? raw.top_debt_customers : [],
+    top_debt_customers: Array.isArray(raw?.top_debt_customers)
+      ? raw.top_debt_customers.map((customer) => normalizePhoneEntity(customer as SuperAdminTopDebtCustomer))
+      : [],
   };
 }
 
@@ -1839,9 +2787,9 @@ function normalizeCustomer(raw: Partial<SuperAdminCustomer>): SuperAdminCustomer
     id: toNumber(raw.id),
     uuid: raw.uuid ?? null,
     name: raw.name ?? null,
-    phone: raw.phone ?? null,
+    phone: normalizePhoneValue(raw.phone),
     status: raw.status ?? null,
-    shop: raw.shop ?? null,
+    shop: normalizeNestedPhoneEntity(raw.shop),
     balance_minor: toNumber(raw.balance_minor),
     balance_text: raw.balance_text ?? null,
     balance_status: raw.balance_status ?? null,
@@ -1866,14 +2814,14 @@ function normalizeCustomerDetail(raw?: Partial<SuperAdminCustomerDetail>): Super
       id: toNumber(customer.id),
       uuid: customer.uuid ?? null,
       name: customer.name ?? null,
-      phone: customer.phone ?? null,
+      phone: normalizePhoneValue(customer.phone),
       notes: customer.notes ?? null,
       status: customer.status ?? null,
       aliases: Array.isArray(customer.aliases) ? customer.aliases : [],
       created_at: customer.created_at ?? null,
       updated_at: customer.updated_at ?? null,
     },
-    shop: raw?.shop ?? null,
+    shop: normalizeNestedPhoneEntity(raw?.shop),
     balance: {
       currency: balance.currency ?? null,
       balance_minor: toNumber(balance.balance_minor),
@@ -1941,9 +2889,9 @@ function normalizeTransaction(raw: Partial<SuperAdminTransaction>): SuperAdminTr
   return {
     id: toNumber(raw.id),
     uuid: raw.uuid ?? null,
-    shop: raw.shop ?? null,
-    customer: raw.customer ?? null,
-    created_by: raw.created_by ?? null,
+    shop: normalizeNestedPhoneEntity(raw.shop),
+    customer: normalizePhoneEntity(raw.customer),
+    created_by: normalizePhoneEntity(raw.created_by),
     entry_type: raw.entry_type ?? null,
     entry_type_label: raw.entry_type_label ?? null,
     direction: raw.direction ?? null,
@@ -1975,11 +2923,11 @@ function normalizeTransactionDetail(raw?: Partial<SuperAdminTransactionDetail>):
       updated_at: raw?.transaction?.updated_at ?? null,
       posted_at: raw?.transaction?.posted_at ?? transaction.posted_at ?? null,
       void_reason: raw?.transaction?.void_reason ?? null,
-      voided_by: raw?.transaction?.voided_by ?? null,
+      voided_by: normalizePhoneEntity(raw?.transaction?.voided_by),
     },
-    shop: raw?.shop ?? null,
-    customer: raw?.customer ?? null,
-    created_by: raw?.created_by ?? null,
+    shop: normalizeNestedPhoneEntity(raw?.shop),
+    customer: normalizePhoneEntity(raw?.customer),
+    created_by: normalizePhoneEntity(raw?.created_by),
     items_count: toNumber(raw?.items_count),
     items: Array.isArray(raw?.items) ? raw.items : [],
     linked_ai_command: raw?.linked_ai_command ? normalizeLinkedAiCommand(raw.linked_ai_command) : null,
@@ -2007,7 +2955,7 @@ function normalizeTransactionAuditEvent(raw: Partial<SuperAdminTransactionAuditE
   return {
     id: raw.id ?? null,
     event_type: raw.event_type ?? null,
-    user: raw.user ?? null,
+    user: normalizePhoneEntity(raw.user),
     metadata_summary: raw.metadata_summary ?? null,
     created_at: raw.created_at ?? null,
   };
@@ -2017,9 +2965,9 @@ function normalizeAiCommand(raw: Partial<SuperAdminAiCommand>): SuperAdminAiComm
   return {
     id: toNumber(raw.id),
     uuid: raw.uuid ?? null,
-    shop: raw.shop ?? null,
-    user: raw.user ?? null,
-    customer: raw.customer ?? null,
+    shop: normalizeNestedPhoneEntity(raw.shop),
+    user: normalizePhoneEntity(raw.user),
+    customer: normalizePhoneEntity(raw.customer),
     raw_text: raw.raw_text ?? null,
     normalized_text: raw.normalized_text ?? null,
     source: raw.source ?? null,
@@ -2053,9 +3001,9 @@ function normalizeAiCommandDetail(raw?: Partial<SuperAdminAiCommandDetail>): Sup
       cancelled_at: raw?.command?.cancelled_at ?? null,
       cancellation_reason: raw?.command?.cancellation_reason ?? null,
     },
-    shop: raw?.shop ?? null,
-    user: raw?.user ?? null,
-    customer: raw?.customer ?? null,
+    shop: normalizeNestedPhoneEntity(raw?.shop),
+    user: normalizePhoneEntity(raw?.user),
+    customer: normalizePhoneEntity(raw?.customer),
     items_count: toNumber(raw?.items_count),
     items: Array.isArray(raw?.items) ? raw.items.map(normalizeAiCommandItem) : [],
     parsed_json: raw?.parsed_json ?? null,
@@ -2120,7 +3068,7 @@ function normalizeAiCustomerMatch(raw: Partial<SuperAdminAiCommandCustomerMatch>
   return {
     id: raw.id ?? null,
     name: raw.name ?? null,
-    phone: raw.phone ?? null,
+    phone: normalizePhoneValue(raw.phone),
     score: raw.score ?? null,
     match_type: raw.match_type ?? null,
     balance_text: raw.balance_text ?? null,
@@ -2131,7 +3079,7 @@ function normalizeAiAuditEvent(raw: Partial<SuperAdminAiCommandAuditEvent>): Sup
   return {
     id: raw.id ?? null,
     event_type: raw.event_type ?? null,
-    user: raw.user ?? null,
+    user: normalizePhoneEntity(raw.user),
     metadata_summary: raw.metadata_summary ?? null,
     created_at: raw.created_at ?? null,
   };
@@ -2179,8 +3127,8 @@ function normalizeDailyJournalEntry(raw: Partial<SuperAdminDailyJournalEntry>): 
   return {
     id: toNumber(raw.id),
     uuid: raw.uuid ?? null,
-    shop: raw.shop ?? null,
-    user: raw.user ?? null,
+    shop: normalizeNestedPhoneEntity(raw.shop),
+    user: normalizePhoneEntity(raw.user),
     entry_type: raw.entry_type ?? null,
     entry_type_label: raw.entry_type_label ?? null,
     entry_date: raw.entry_date ?? null,
@@ -2208,8 +3156,8 @@ function normalizeDailyJournalEntryDetail(raw?: Partial<SuperAdminDailyJournalEn
       client_request_id: raw?.entry?.client_request_id ?? null,
       void_reason: raw?.entry?.void_reason ?? null,
     },
-    shop: raw?.shop ?? null,
-    user: raw?.user ?? null,
+    shop: normalizeNestedPhoneEntity(raw?.shop),
+    user: normalizePhoneEntity(raw?.user),
     related_ai_draft: raw?.related_ai_draft ?? null,
   };
 }
@@ -2218,8 +3166,8 @@ function normalizeDailyJournalAiDraft(raw: Partial<SuperAdminDailyJournalAiDraft
   return {
     id: toNumber(raw.id),
     uuid: raw.uuid ?? null,
-    shop: raw.shop ?? null,
-    user: raw.user ?? null,
+    shop: normalizeNestedPhoneEntity(raw.shop),
+    user: normalizePhoneEntity(raw.user),
     raw_text: raw.raw_text ?? null,
     source: raw.source ?? null,
     intent: raw.intent ?? null,
@@ -2257,7 +3205,7 @@ function normalizeDailyJournalReport(raw?: Partial<SuperAdminDailyJournalReport>
       is_complete_for_profit: Boolean(day.is_complete_for_profit),
     })) : [],
     per_shop_summary: Array.isArray(raw?.per_shop_summary) ? raw.per_shop_summary.map((row) => ({
-      shop: row.shop ?? null,
+      shop: normalizeNestedPhoneEntity(row.shop),
       entries_count: toNumber(row.entries_count),
       recorded_days_count: toNumber(row.recorded_days_count),
       missing_days_count: toNumber(row.missing_days_count),
@@ -2280,8 +3228,8 @@ function normalizeDailyJournalAiDraftDetail(raw?: Partial<SuperAdminDailyJournal
       assistant_reply: raw?.draft?.assistant_reply ?? null,
       updated_at: raw?.draft?.updated_at ?? null,
     },
-    shop: raw?.shop ?? null,
-    user: raw?.user ?? null,
+    shop: normalizeNestedPhoneEntity(raw?.shop),
+    user: normalizePhoneEntity(raw?.user),
     confirmed_entry: raw?.confirmed_entry ? normalizeDailyJournalEntry(raw.confirmed_entry) : null,
     parsed_json: raw?.parsed_json ?? null,
     answer_json: raw?.answer_json ?? null,
@@ -2310,8 +3258,8 @@ function normalizeAuditEvent(raw: Partial<SuperAdminAuditEvent>): SuperAdminAudi
     event_label: raw.event_label ?? null,
     severity: raw.severity ?? null,
     severity_label: raw.severity_label ?? null,
-    user: raw.user ?? null,
-    shop: raw.shop ?? null,
+    user: normalizePhoneEntity(raw.user),
+    shop: normalizeNestedPhoneEntity(raw.shop),
     subject_type: raw.subject_type ?? null,
     subject_id: raw.subject_id ?? null,
     ip_address: raw.ip_address ?? null,

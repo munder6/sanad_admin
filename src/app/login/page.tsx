@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { superAdminApi } from "@/lib/api/superAdminApi";
 import { getToken, setStoredUser, setToken } from "@/lib/auth/authStorage";
+import { isValidLocalPhone, sanitizeLocalPhoneInput } from "@/lib/formatters/number";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -24,6 +25,11 @@ export default function LoginPage() {
 
     if (!phone.trim() || !password) {
       setError("يرجى إدخال رقم الهاتف وكلمة المرور.");
+      return;
+    }
+
+    if (!isValidLocalPhone(phone)) {
+      setError("رقم الجوال يجب أن يكون 10 أرقام ويبدأ بصفر.");
       return;
     }
 
@@ -90,9 +96,10 @@ export default function LoginPage() {
               <span className="text-[14px] font-semibold text-[var(--text)]">رقم الهاتف</span>
               <input
                 value={phone}
-                onChange={(event) => setPhone(event.target.value)}
+                onChange={(event) => setPhone(sanitizeLocalPhoneInput(event.target.value))}
                 autoComplete="tel"
                 inputMode="tel"
+                maxLength={10}
                 className="focus-ring mt-2 w-full rounded-[var(--r-md)] border border-[var(--hairline)] bg-white px-4 py-3 text-right text-[15px] shadow-[var(--shadow-1)] placeholder:text-[var(--muted-2)]"
                 placeholder="مثال: 0590000000"
               />
