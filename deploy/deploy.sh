@@ -66,6 +66,7 @@ retry() {
 # --- render the per-environment .htaccess from the committed template --------------
 RENDERED="$(mktemp)"
 sed "s#__REWRITE_BASE__#${REWRITE_BASE}#g" deploy/htaccess > "$RENDERED"
+chmod 644 "$RENDERED"   # mktemp defaults to 0600; the web server must be able to read .htaccess
 echo "==> Rendered .htaccess (RewriteBase ${REWRITE_BASE}):"
 sed 's/^/    /' "$RENDERED"
 
@@ -94,13 +95,30 @@ fi
 
 # --- sync app files (creates the folder if missing; .htaccess left untouched) ------
 echo "==> Syncing out/ -> $SSH_USER@$SSH_HOST:$TARGET_DIR/ (--delete, .htaccess excluded)"
-retry rsync -rlptz --delete --exclude='.htaccess' \
+retry rsync -rlptz --delete --exclude='.htaccess' --chmod=D755,F644 \
   -e "$RSH" \
   --rsync-path="mkdir -p '$TARGET_DIR' && rsync" \
   out/ "$SSH_USER@$SSH_HOST:$TARGET_DIR/"
 
 # --- place the correct .htaccess (written AFTER the sync, never deleted) ------------
+# Force 0644 so the web server (LiteSpeed/Apache) can read it — without this the rule
+# is silently ignored and unmatched routes fall through to the parent site.
 echo "==> Placing environment .htaccess"
-retry rsync -ptz -e "$RSH" "$RENDERED" "$SSH_USER@$SSH_HOST:$TARGET_DIR/.htaccess"
+retry rsync -ptz --chmod=F644 -e "$RSH" "$RENDERED" "$SSH_USER@$SSH_HOST:$TARGET_DIR/.htaccess"
+
+# --- verify the .htaccess actually landed and is readable (catches silent failures) -
+echo "==> Verifying .htaccess on server"
+ver_cmd="
+set -eu
+F='$TARGET_DIR/.htaccess'
+if [ -f \"\$F\" ]; then
+  echo \"    perms/owner/size: \$(ls -l \"\$F\" | awk '{print \$1, \$3, \$4, \$5}')\"
+  [ -r \"\$F\" ] && echo '    readable: yes' || { echo '    readable: NO'; exit 1; }
+  echo \"    \$(grep -i RewriteBase \"\$F\" || echo 'RewriteBase MISSING')\"
+else
+  echo '    ERROR: .htaccess not found on server'; exit 1
+fi
+"
+retry ssh -i "$KEY" -p "$SSH_PORT" $SSH_OPTS "$SSH_USER@$SSH_HOST" "$ver_cmd"
 
 echo "==> Deploy complete."
