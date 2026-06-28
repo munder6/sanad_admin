@@ -14,6 +14,7 @@ import {
   SystemIcon,
   TransactionsIcon,
   UsersIcon,
+  WalletIcon,
 } from "@/components/icons/AdminIcons";
 import { adminRoutes, getActiveAdminRoute } from "@/lib/constants/routes";
 
@@ -31,6 +32,7 @@ const navIcons = {
   customers: CustomersIcon,
   transactions: TransactionsIcon,
   journal: JournalIcon,
+  wallet: WalletIcon,
   ai: AiIcon,
   audit: AuditIcon,
   sms: SmsIcon,

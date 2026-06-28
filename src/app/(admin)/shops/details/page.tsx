@@ -17,6 +17,7 @@ import {
   type SuperAdminRecentAiCommand,
   type SuperAdminRecentTransaction,
   type SuperAdminShopDetail,
+  type SuperAdminShopWallet,
 } from "@/lib/api/superAdminApi";
 import { formatArabicDate, formatArabicDateTime } from "@/lib/formatters/date";
 
@@ -133,6 +134,8 @@ function ShopDetailsContent() {
             </div>
           </section>
 
+          <ShopWalletsSection shopId={shopId} />
+
           <section className="sanad-card overflow-hidden">
             <div className="sanad-card-header">
               <div>
@@ -188,6 +191,141 @@ function ShopDetailsContent() {
         </div>
       ) : null}
     </>
+  );
+}
+
+function ShopWalletsSection({ shopId }: { shopId: string }) {
+  const [wallets, setWallets] = useState<SuperAdminShopWallet[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [savingId, setSavingId] = useState<number | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  const loadWallets = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      setWallets(await superAdminApi.getShopWallets(shopId));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "تعذر تحميل محافظ المتجر.");
+    } finally {
+      setLoading(false);
+    }
+  }, [shopId]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      loadWallets();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [loadWallets]);
+
+  const toggleFreeze = useCallback(
+    async (wallet: SuperAdminShopWallet) => {
+      const nextFrozen = !wallet.is_frozen_for_shop;
+
+      try {
+        setSavingId(wallet.id);
+        setActionError(null);
+        setSuccess(null);
+        const updated = await superAdminApi.setShopWalletFreeze(shopId, wallet.id, nextFrozen);
+        setWallets((current) =>
+          current.map((item) => (item.id === updated.id ? { ...item, is_frozen_for_shop: updated.is_frozen_for_shop } : item)),
+        );
+        setSuccess(
+          nextFrozen
+            ? `تم تجميد «${wallet.name_ar}» لهذا المتجر.`
+            : `تم إتاحة «${wallet.name_ar}» لهذا المتجر.`,
+        );
+      } catch (caught) {
+        setActionError(caught instanceof Error ? caught.message : "تعذر تحديث حالة المحفظة.");
+      } finally {
+        setSavingId(null);
+      }
+    },
+    [shopId],
+  );
+
+  return (
+    <section className="sanad-card overflow-hidden">
+      <div className="sanad-card-header">
+        <div>
+          <h3 className="sanad-section-title">محافظ المتجر</h3>
+          <p className="sanad-section-subtitle">
+            تجميد المحفظة يمنع تسجيل حركات جديدة عليها لهذا المتجر فقط، ولا يؤثر على الحركات أو التقارير أو الأرصدة السابقة.
+          </p>
+        </div>
+      </div>
+
+      {success ? (
+        <div className="mx-4 mb-3 rounded-[var(--r-md)] border border-[var(--success-soft)] bg-[var(--success-soft)] px-4 py-3 text-[14px] font-semibold text-[var(--success-700)]">
+          {success}
+        </div>
+      ) : null}
+
+      {actionError ? (
+        <div className="mx-4 mb-3 rounded-[var(--r-md)] border border-[var(--danger-soft)] bg-[var(--danger-soft)] px-4 py-3 text-[14px] font-semibold text-[var(--danger-700)]">
+          {actionError}
+        </div>
+      ) : null}
+
+      {loading ? (
+        <div className="p-4">
+          <LoadingState label="جاري تحميل محافظ المتجر..." />
+        </div>
+      ) : error ? (
+        <div className="p-4">
+          <ErrorState title="تعذر تحميل المحافظ" message={error} onRetry={loadWallets} />
+        </div>
+      ) : wallets.length === 0 ? (
+        <EmptyState title="لا توجد محافظ" description="لم تتم إضافة محافظ إلى الكتالوج العام بعد." />
+      ) : (
+        <div className="sanad-table-wrap">
+          <table className="sanad-table">
+            <thead>
+              <tr>
+                <th>المحفظة</th>
+                <th>الحالة لهذا المتجر</th>
+                <th className="!text-left">إجراء</th>
+              </tr>
+            </thead>
+            <tbody>
+              {wallets.map((wallet) => {
+                const globallyInactive = !wallet.is_active;
+                const frozen = wallet.is_frozen_for_shop;
+
+                return (
+                  <tr key={wallet.id}>
+                    <td className="font-medium text-[var(--text)]">{wallet.name_ar || "محفظة بدون اسم"}</td>
+                    <td>
+                      {globallyInactive ? (
+                        <StatusBadge tone="neutral">غير متاحة (معطّلة عامًا)</StatusBadge>
+                      ) : frozen ? (
+                        <StatusBadge tone="danger">مجمّدة لهذا المتجر</StatusBadge>
+                      ) : (
+                        <StatusBadge tone="success">متاحة</StatusBadge>
+                      )}
+                    </td>
+                    <td className="!text-left">
+                      <button
+                        type="button"
+                        className="sanad-btn h-8 px-3 text-[12px] disabled:cursor-not-allowed disabled:opacity-60"
+                        disabled={globallyInactive || savingId === wallet.id}
+                        onClick={() => toggleFreeze(wallet)}
+                      >
+                        {savingId === wallet.id ? "جاري الحفظ..." : globallyInactive ? "—" : frozen ? "إتاحة" : "تجميد"}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
   );
 }
 

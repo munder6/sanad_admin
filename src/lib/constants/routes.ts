@@ -2,7 +2,7 @@ export type AdminRoute = {
   href: string;
   label: string;
   eyebrow: string;
-  icon: "dashboard" | "shops" | "users" | "customers" | "transactions" | "journal" | "ai" | "audit" | "sms" | "system" | "settings";
+  icon: "dashboard" | "shops" | "users" | "customers" | "transactions" | "journal" | "wallet" | "ai" | "audit" | "sms" | "system" | "settings";
   group: "overview" | "management" | "operations" | "system";
 };
 
@@ -13,6 +13,7 @@ export const adminRoutes: AdminRoute[] = [
   { href: "/customers", label: "الزبائن", eyebrow: "دفاتر الزبائن", icon: "customers", group: "management" },
   { href: "/transactions", label: "الحركات المالية", eyebrow: "الديون والسداد", icon: "transactions", group: "operations" },
   { href: "/daily-journal", label: "اليوميات", eyebrow: "دفتر اليوميات", icon: "journal", group: "operations" },
+  { href: "/wallets", label: "المحافظ", eyebrow: "كتالوج المحافظ", icon: "wallet", group: "operations" },
   { href: "/ai-commands", label: "أوامر الذكاء الصناعي", eyebrow: "الأوامر الذكية", icon: "ai", group: "operations" },
   { href: "/audit", label: "الأمان والتدقيق", eyebrow: "سجل النظام", icon: "audit", group: "system" },
   { href: "/sms", label: "الرسائل النصية", eyebrow: "إدارة SMS", icon: "sms", group: "system" },

@@ -1533,6 +1533,46 @@ export const emptyDailyJournalOverview: SuperAdminDailyJournalOverview = {
   monitoring: [],
 };
 
+export type SuperAdminWallet = {
+  id: number;
+  name_ar: string;
+  is_active: boolean;
+  sort_order: number;
+  entries_count: number;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
+export type SuperAdminWalletsParams = {
+  search?: string;
+  is_active?: number;
+  page?: number;
+  per_page?: number;
+};
+
+export type SuperAdminWalletListResponse = {
+  wallets: SuperAdminWallet[];
+  meta: SuperAdminPaginationMeta;
+};
+
+export type CreateSuperAdminWalletInput = {
+  name_ar: string;
+  sort_order?: number;
+};
+
+export type UpdateSuperAdminWalletInput = {
+  name_ar?: string;
+  is_active?: boolean;
+  sort_order?: number;
+};
+
+export type SuperAdminShopWallet = {
+  id: number;
+  name_ar: string;
+  is_active: boolean;
+  is_frozen_for_shop: boolean;
+};
+
 export const superAdminApi = {
   async login(phone: string, password: string): Promise<SuperAdminLoginResponse> {
     const response = await apiRequest<RawLoginData>("/super-admin/auth/login", {
@@ -1646,6 +1686,63 @@ export const superAdminApi = {
   async getShop(id: number | string): Promise<SuperAdminShopDetail> {
     const response = await apiRequest<Partial<SuperAdminShopDetail>>(`/super-admin/shops/${id}`);
     return normalizeShopDetail(response.data);
+  },
+
+  async getWallets(params: SuperAdminWalletsParams = {}): Promise<SuperAdminWalletListResponse> {
+    const query = buildQuery(params);
+    const response = await apiRequest<SuperAdminWallet[]>(`/super-admin/wallets${query}`);
+
+    return {
+      wallets: Array.isArray(response.data) ? response.data.map(normalizeWallet) : [],
+      meta: normalizePaginationMeta(response.meta),
+    };
+  },
+
+  async createWallet(payload: CreateSuperAdminWalletInput): Promise<SuperAdminWallet> {
+    const response = await apiRequest<Partial<SuperAdminWallet>>("/super-admin/wallets", {
+      method: "POST",
+      body: {
+        name_ar: payload.name_ar.trim(),
+        sort_order: payload.sort_order ?? 0,
+      },
+    });
+
+    return normalizeWallet(response.data);
+  },
+
+  async updateWallet(id: number | string, payload: UpdateSuperAdminWalletInput): Promise<SuperAdminWallet> {
+    const body: Record<string, unknown> = {};
+    if (payload.name_ar !== undefined) body.name_ar = payload.name_ar.trim();
+    if (payload.is_active !== undefined) body.is_active = payload.is_active;
+    if (payload.sort_order !== undefined) body.sort_order = payload.sort_order;
+
+    const response = await apiRequest<Partial<SuperAdminWallet>>(`/super-admin/wallets/${id}`, {
+      method: "PATCH",
+      body,
+    });
+
+    return normalizeWallet(response.data);
+  },
+
+  async getShopWallets(shopId: number | string): Promise<SuperAdminShopWallet[]> {
+    const response = await apiRequest<SuperAdminShopWallet[]>(`/super-admin/shops/${shopId}/wallets`);
+    return Array.isArray(response.data) ? response.data.map(normalizeShopWallet) : [];
+  },
+
+  async setShopWalletFreeze(
+    shopId: number | string,
+    walletId: number | string,
+    isFrozen: boolean,
+  ): Promise<SuperAdminShopWallet> {
+    const response = await apiRequest<Partial<SuperAdminShopWallet>>(
+      `/super-admin/shops/${shopId}/wallets/${walletId}`,
+      {
+        method: "PATCH",
+        body: { is_frozen: isFrozen },
+      },
+    );
+
+    return normalizeShopWallet(response.data);
   },
 
   async getUsers(params: SuperAdminUsersParams = {}): Promise<SuperAdminUserListResponse> {
@@ -2724,6 +2821,27 @@ function normalizePaginationMeta(meta?: Record<string, unknown>): SuperAdminPagi
     per_page: toNumber(meta?.per_page) || 20,
     total: toNumber(meta?.total),
     last_page: toNumber(meta?.last_page) || 1,
+  };
+}
+
+function normalizeWallet(raw: Partial<SuperAdminWallet> = {}): SuperAdminWallet {
+  return {
+    id: toNumber(raw.id),
+    name_ar: raw.name_ar ?? "",
+    is_active: toBoolean(raw.is_active),
+    sort_order: toNumber(raw.sort_order),
+    entries_count: toNumber(raw.entries_count),
+    created_at: raw.created_at ?? null,
+    updated_at: raw.updated_at ?? null,
+  };
+}
+
+function normalizeShopWallet(raw: Partial<SuperAdminShopWallet> = {}): SuperAdminShopWallet {
+  return {
+    id: toNumber(raw.id),
+    name_ar: raw.name_ar ?? "",
+    is_active: toBoolean(raw.is_active),
+    is_frozen_for_shop: toBoolean(raw.is_frozen_for_shop),
   };
 }
 

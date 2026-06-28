@@ -77,6 +77,16 @@ export function JournalIcon(props: IconProps) {
   );
 }
 
+export function WalletIcon(props: IconProps) {
+  return (
+    <BaseIcon {...props}>
+      <path d="M4 7.5A2.5 2.5 0 0 1 6.5 5H17a2 2 0 0 1 2 2v.5" />
+      <path d="M4 7.5V17a2 2 0 0 0 2 2h12.5a1.5 1.5 0 0 0 1.5-1.5V10a1.5 1.5 0 0 0-1.5-1.5H6.5A2.5 2.5 0 0 1 4 7.5z" />
+      <circle cx="16" cy="13.5" r="1.2" />
+    </BaseIcon>
+  );
+}
+
 export function AiIcon(props: IconProps) {
   return (
     <BaseIcon {...props}>
